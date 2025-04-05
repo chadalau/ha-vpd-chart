@@ -23,19 +23,25 @@ export const chart = {
             </ha-card>
         `;
         try {
-            const response = await fetch(`/hacsfiles/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
+            const cssUrl = `/hacsfiles/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`;
+            const response = await fetch(cssUrl);
             if (response.ok) {
-                this.innerHTML = this.htmlTemplate.replace('##url##', `/hacsfiles/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
-                this.content = this.querySelector("div.vpd-card-container");
-                this.roomdom = this.querySelector("div#rooms");
-                this.ghostmapDom = this.querySelector("div#ghostmap");
-                this.mouseTooltip = this.querySelector("div#mouse-tooltip");
+                this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
             } else {
-                throw new Error('fallback to local/community');
+                // Use fallback URL directly if fetch fails
+                this.innerHTML = this.htmlTemplate.replace('##url##', `/local/community/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
             }
         } catch (error) {
+            // Catch other potential errors during fetch/network issues
+            console.error("Error fetching CSS:", error);
             this.innerHTML = this.htmlTemplate.replace('##url##', `/local/community/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
         }
+
+        // Initialize DOM references once
+        this.content = this.querySelector("div.vpd-card-container");
+        this.roomdom = this.querySelector("div#rooms");
+        this.ghostmapDom = this.querySelector("div#ghostmap");
+        this.mouseTooltip = this.querySelector("div#mouse-tooltip");
     },
     async buildChart() {
         if (!this.content) {
@@ -52,32 +58,35 @@ export const chart = {
 
             this.updateGhostMapPeriodically.call(this);
         } else {
-            if (this.shouldUpdate() || (this.lastUpdate === undefined || Date.now() - this.lastUpdate > 1000)) {
+            const currentTime = Date.now();
+            const shouldUpdateTable = this.shouldUpdate() ||
+                (this.lastUpdate === undefined || currentTime - this.lastUpdate > 1000);
+
+            if (shouldUpdateTable) {
                 await this.buildTable(this.querySelector('#vpd-table-container'));
-                this.lastUpdate = Date.now();
+                this.lastUpdate = currentTime;
             }
         }
 
-        if (this.enable_axes) {
-            this.addGridLines();
-        } else {
-            this.removeGridLines();
-        }
+        // Handle grid lines based on configuration
+        this.enable_axes ? this.addGridLines() : this.removeGridLines();
 
-
+        // Handle minimum height settings
         if (this.min_height > 0 && this.content) {
             this.content.style.minHeight = `${this.min_height}px`;
+
+            // Apply min height to container elements
             const vpdContainer = this.querySelector("div.vpd-container");
-            const tableContainers = this.querySelectorAll('div#vpd-table-container');
             if (vpdContainer) {
                 vpdContainer.style.minHeight = `${this.min_height}px`;
             }
-            if (tableContainers) {
-                tableContainers.forEach(tableContainer => {
-                    tableContainer.style.minHeight = `${this.min_height}px`;
-                })
-            }
+
+            const tableContainers = this.querySelectorAll('div#vpd-table-container');
+            tableContainers.forEach(tableContainer => {
+                tableContainer.style.minHeight = `${this.min_height}px`;
+            });
         }
+
         this.buildTooltip();
     },
     handleZoom(event) {
@@ -86,54 +95,73 @@ export const chart = {
         const rect = this.content.getBoundingClientRect();
         const offsetX = (event.clientX - rect.left) / this.zoomLevel;
         const offsetY = (event.clientY - rect.top) / this.zoomLevel;
-        let newZoomLevel = this.zoomLevel + zoomDirection;
-        newZoomLevel = Math.min(Math.max(newZoomLevel, this.minZoom), this.maxZoom);
-        newZoomLevel = Math.round(newZoomLevel * 100) / 100;  // Rundung auf 2 Dezimalstellen
-        if (newZoomLevel !== this.zoomLevel) {
-            this.zoomLevel = newZoomLevel;
 
-            this.content.style.transformOrigin = `${offsetX}px ${offsetY}px`;
-            this.roomdom.style.transformOrigin = `${offsetX}px ${offsetY}px`;
-            this.ghostmapDom.style.transformOrigin = `${offsetX}px ${offsetY}px`;
-            this.mouseTooltip.style.transformOrigin = `${offsetX}px ${offsetY}px`;
+        // Calculate new zoom level with constraints and rounding
+        let newZoomLevel = Math.min(
+            Math.max(this.zoomLevel + zoomDirection, this.minZoom),
+            this.maxZoom
+        );
+        newZoomLevel = Math.round(newZoomLevel * 100) / 100;  // Round to 2 decimal places
 
+        if (newZoomLevel === this.zoomLevel) return;
 
-            this.content.style.transform = `scale(${this.zoomLevel})`;
-            this.roomdom.style.transform = `scale(${this.zoomLevel})`;
-            this.ghostmapDom.style.transform = `scale(${this.zoomLevel})`;
-            this.mouseTooltip.style.transform = `scale(${this.zoomLevel})`;
+        this.zoomLevel = newZoomLevel;
+        const transformOrigin = `${offsetX}px ${offsetY}px`;
+        const transform = `scale(${this.zoomLevel})`;
 
-            this.querySelectorAll('.custom-tooltip').forEach(tooltip => {
-                tooltip.style.fontSize = `${12 / this.zoomLevel}px`;
-                tooltip.style.padding = `${7 / this.zoomLevel}px`;
-                if (tooltip.querySelector('.cf-icon-svg')) {
-                    tooltip.querySelector('.cf-icon-svg').style.width = `${13 / this.zoomLevel}px`;
-                    tooltip.querySelector('.cf-icon-svg').style.height = `${13 / this.zoomLevel}px`;
-                }
-            });
-        }
+        // Apply transforms to all zoomable elements
+        const zoomableElements = [this.content, this.roomdom, this.ghostmapDom, this.mouseTooltip];
+        zoomableElements.forEach(el => {
+            el.style.transformOrigin = transformOrigin;
+            el.style.transform = transform;
+        });
+
+        // Adjust tooltip sizes for zoom level
+        this.querySelectorAll('.custom-tooltip').forEach(tooltip => {
+            tooltip.style.fontSize = `${12 / this.zoomLevel}px`;
+            tooltip.style.padding = `${7 / this.zoomLevel}px`;
+
+            const icon = tooltip.querySelector('.cf-icon-svg');
+            if (icon) {
+                const iconSize = `${13 / this.zoomLevel}px`;
+                icon.style.width = iconSize;
+                icon.style.height = iconSize;
+            }
+        });
     },
 
     setupEventListeners() {
+        // Basic mouse events
         this.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
         this.addEventListener('mousemove', this.handleMouseMove.bind(this));
+
+        // Zoom-related events
         if (this.enable_zoom) {
             this.addEventListener('wheel', this.handleZoom.bind(this));
             this.addEventListener('mousedown', this.handleMouseDown.bind(this));
             this.addEventListener('mouseup', this.handleMouseUp.bind(this));
+
+            // Handle middle-click to reset zoom
             this.addEventListener('auxclick', (event) => {
                 if (event.button === 1) {
                     this.zoomLevel = 1;
-                    this.content.style.transform = `scale(${this.zoomLevel})`;
-                    this.roomdom.style.transform = `scale(${this.zoomLevel})`;
-                    this.ghostmapDom.style.transform = `scale(${this.zoomLevel})`;
-                    this.mouseTooltip.style.transform = `scale(${this.zoomLevel})`;
+                    const transform = `scale(${this.zoomLevel})`;
+
+                    // Reset zoom on all elements
+                    [this.content, this.roomdom, this.ghostmapDom, this.mouseTooltip].forEach(el => {
+                        el.style.transform = transform;
+                    });
+
+                    // Reset tooltips
                     this.querySelectorAll('.custom-tooltip').forEach(tooltip => {
                         tooltip.style.fontSize = `${12 / this.zoomLevel}px`;
                         tooltip.style.padding = `${7 / this.zoomLevel}px`;
-                        if (tooltip.querySelector('.cf-icon-svg')) {
-                            tooltip.querySelector('.cf-icon-svg').style.width = `${13 / this.zoomLevel}px`;
-                            tooltip.querySelector('.cf-icon-svg').style.height = `${13 / this.zoomLevel}px`;
+
+                        const icon = tooltip.querySelector('.cf-icon-svg');
+                        if (icon) {
+                            const iconSize = `${13 / this.zoomLevel}px`;
+                            icon.style.width = iconSize;
+                            icon.style.height = iconSize;
                         }
                     });
                 }
@@ -153,6 +181,7 @@ export const chart = {
         this.startX = event.clientX;
         this.startY = event.clientY;
 
+        // Get current transform matrix
         const computedStyle = window.getComputedStyle(this.content);
         const matrix = new WebKitCSSMatrix(computedStyle.transform);
 
@@ -172,28 +201,34 @@ export const chart = {
         const xPercent = (x / rect.width) * 100;
         const yPercent = (y / rect.height) * 100;
 
+        // Calculate temperature and humidity values
         const temperatureRange = this.max_temperature - this.min_temperature;
         const humidityRange = this.max_humidity - this.min_humidity;
 
         let temperature = this.min_temperature + (temperatureRange * yPercent / 100);
         let humidity = this.max_humidity - (humidityRange * xPercent / 100);
-        let leafTemperatureOffset = this.getLeafTemperatureOffset();
+
+        // Handle current room data
         if (this.config.rooms[this.currentIndex] !== undefined) {
-            let room = this.config.rooms[this.currentIndex];
-            if (room.leaf_temperature !== undefined) {
-                if (this._hass.states[room.leaf_temperature] !== undefined) {
-                    leafTemperatureOffset = parseFloat(this._hass.states[room.temperature].state) - parseFloat(this._hass.states[room.leaf_temperature].state);
-                }
+            const room = this.config.rooms[this.currentIndex];
+            let leafTemperatureOffset = this.getLeafTemperatureOffset();
+
+            // Get leaf temperature if available
+            if (room.leaf_temperature !== undefined &&
+                this._hass.states[room.leaf_temperature] !== undefined) {
+                leafTemperatureOffset = parseFloat(this._hass.states[room.temperature].state) - parseFloat(this._hass.states[room.leaf_temperature].state);
             }
+
             let leafTemperature = temperature - leafTemperatureOffset;
             let vpd = this.calculateVPD(leafTemperature, temperature, humidity, this._hass.states[room.temperature].attributes['unit_of_measurement']);
             this.buildMouseTooltip(event, humidity, temperature, vpd);
 
         }
 
+        // Handle crosshair visualization
         if (this.enable_crosshair) {
-            const mouseHorizontalLine = this.querySelector(`.mouse-horizontal-line`);
-            const mouseVerticalLine = this.querySelector(`.mouse-vertical-line`);
+            const mouseHorizontalLine = this.querySelector('.mouse-horizontal-line');
+            const mouseVerticalLine = this.querySelector('.mouse-vertical-line');
 
             mouseHorizontalLine.style.top = `${y / this.zoomLevel}px`;
             mouseVerticalLine.style.left = `${x / this.zoomLevel}px`;
@@ -201,25 +236,26 @@ export const chart = {
             mouseVerticalLine.style.opacity = '1';
         }
 
+        // Handle panning
+        if (this.isPanning && this.zoomLevel > 1) {
+            const deltaX = event.clientX - this.startX;
+            const deltaY = event.clientY - this.startY;
+            const newLeft = this.startLeft + deltaX;
+            const newTop = this.startTop + deltaY;
+            const transform = `translate(${newLeft}px, ${newTop}px) scale(${this.zoomLevel})`;
 
-        if (!this.isPanning) return;
-        if (this.zoomLevel === 1) return;
-        const deltaX = event.clientX - this.startX;
-        const deltaY = event.clientY - this.startY;
-
-        let newLeft = this.startLeft + deltaX;
-        let newTop = this.startTop + deltaY;
-
-        this.content.style.transform = `translate(${newLeft}px, ${newTop}px) scale(${this.zoomLevel})`;
-        this.roomdom.style.transform = `translate(${newLeft}px, ${newTop}px) scale(${this.zoomLevel})`;
-        this.ghostmapDom.style.transform = `translate(${newLeft}px, ${newTop}px) scale(${this.zoomLevel})`;
-        this.mouseTooltip.style.transform = `translate(${newLeft}px, ${newTop}px) scale(${this.zoomLevel})`;
-
+            // Apply transform to all draggable elements
+            [this.content, this.roomdom, this.ghostmapDom, this.mouseTooltip].forEach(el => {
+                el.style.transform = transform;
+            });
+        }
     },
+
     positionTooltip(tooltip, percentageHumidity) {
         const containerWidth = this.content.offsetWidth;
         const tooltipCenter = tooltip.offsetLeft + (tooltip.offsetWidth / 2);
 
+        // Handle tooltip positioning to avoid overflow
         if (tooltipCenter > containerWidth) {
             const overflowWidth = tooltipCenter - containerWidth + 5;
             tooltip.style.left = `calc(${percentageHumidity}% - ${overflowWidth}px)`;
@@ -239,7 +275,8 @@ export const chart = {
         const createRow = (row) => {
             const rowElement = document.createElement('div');
             rowElement.className = 'vpd-row';
-            let segments = [];
+
+            const segments = [];
             let currentClass = null;
             let startIndex = 0;
             const rowLength = row.length;
@@ -274,6 +311,8 @@ export const chart = {
             for (let i = 0; i < segmentsLength; i++) {
                 const segment = segments[i];
                 let adjustedWidth;
+
+                // Ensure last segment fills remaining space precisely
                 if (i === segmentsLength - 1) {
                     adjustedWidth = (100 - accumulatedWidth).toFixed(2);
                 } else {
@@ -300,12 +339,31 @@ export const chart = {
                         container.appendChild(tableContainer);
                     }
 
+                    // Get temperature values
                     const temperature = parseFloat(this._hass.states[room.temperature].state);
-                    const leafTemperature = room.leaf_temperature ? parseFloat(this._hass.states[room.leaf_temperature].state) : undefined;
-                    let leafTemperatureOffset = leafTemperature !== undefined ? temperature - leafTemperature : this.getLeafTemperatureOffset();
+                    let leafTemperature;
+                    let leafTemperatureOffset;
 
-                    let vpdMatrix = this.createVPDMatrix(this.min_temperature, this.max_temperature, this.steps_temperature, this.max_humidity, this.min_humidity, this.steps_humidity, leafTemperatureOffset);
+                    // Handle leaf temperature if available
+                    if (room.leaf_temperature && this._hass.states[room.leaf_temperature]) {
+                        leafTemperature = parseFloat(this._hass.states[room.leaf_temperature].state);
+                        leafTemperatureOffset = temperature - leafTemperature;
+                    } else {
+                        leafTemperatureOffset = this.getLeafTemperatureOffset();
+                    }
 
+                    // Create VPD matrix and render it
+                    const vpdMatrix = this.createVPDMatrix(
+                        this.min_temperature,
+                        this.max_temperature,
+                        this.steps_temperature,
+                        this.max_humidity,
+                        this.min_humidity,
+                        this.steps_humidity,
+                        leafTemperatureOffset
+                    );
+
+                    // Create and append all rows at once using document fragment
                     const fragment = document.createDocumentFragment();
                     for (let i = 0; i < vpdMatrixLength; i++) {
                         fragment.appendChild(createRow(vpdMatrix[i]));
@@ -317,19 +375,19 @@ export const chart = {
             });
         };
 
-        const updateDOM = async () => {
-            for (let roomIndex = 0; roomIndex < this.config.rooms.length; roomIndex++) {
-                const room = this.config.rooms[roomIndex];
-                await processRoom(room, roomIndex);
-            }
-        };
+        // Process all rooms asynchronously for better responsiveness
+        const roomPromises = this.config.rooms.map((room, roomIndex) =>
+            processRoom(room, roomIndex)
+        );
 
-        await updateDOM();
-    }, addGridLines() {
-        const grid = this.querySelector('.vpd-grid') || document.createElement('div');
-        grid.className = 'vpd-grid';
+        await Promise.all(roomPromises);
+    },
 
-        if (!grid.isConnected) {
+    addGridLines() {
+        let grid = this.querySelector('.vpd-grid');
+        if (!grid) {
+            grid = document.createElement('div');
+            grid.className = 'vpd-grid';
             this.addHorizontalGridLines(grid);
             this.addVerticalGridLines(grid);
             this.content.appendChild(grid);
@@ -345,32 +403,43 @@ export const chart = {
             this.horizontalGridCache = new Array(temperatureSteps + 1);
         }
 
+        // Create document fragment for batch DOM operations
+        const fragment = document.createDocumentFragment();
+
         for (let i = 0; i <= temperatureSteps; i++) {
+            const positionPercent = `${(i / temperatureSteps) * 100}%`;
+            const currentValue = this.min_temperature + (i * (this.max_temperature - this.min_temperature) / temperatureSteps);
+
+            // Create or update grid elements
             if (!this.horizontalGridCache[i]) {
                 const line = document.createElement('div');
                 line.className = 'grid-line horizontal';
-                line.style.top = `${(i / temperatureSteps) * 100}%`;
+                line.style.top = positionPercent;
 
                 const label = document.createElement('div');
                 label.className = 'temperature-axis-label';
-                const currentValue = this.min_temperature + (i * (this.max_temperature - this.min_temperature) / temperatureSteps);
 
                 this.horizontalGridCache[i] = {line, label, value: currentValue};
             }
 
             const {line, label, value} = this.horizontalGridCache[i];
             label.textContent = `${value.toFixed(0)}${this.unit_temperature}`;
-            label.style.top = `${(i / temperatureSteps) * 100}%`;
+            label.style.top = positionPercent;
 
-            grid.appendChild(line);
-            if (label.style.top !== '100%' && label.style.top !== '0%') {
-                grid.appendChild(label);
+            fragment.appendChild(line);
+            // Only add labels in the middle (not at 0% or 100%)
+            if (positionPercent !== '100%' && positionPercent !== '0%') {
+                fragment.appendChild(label);
             }
         }
+
+        grid.appendChild(fragment);
     },
 
     updateTemperatureUnit(newUnit) {
         this.unit_temperature = newUnit;
+
+        // Update all temperature labels if grid cache exists
         if (this.horizontalGridCache) {
             this.horizontalGridCache.forEach(item => {
                 if (item && item.label) {
@@ -381,86 +450,110 @@ export const chart = {
     },
     addVerticalGridLines(grid) {
         const humiditySteps = 9;
+        if (!this.verticalGridCache) {
+            this.verticalGridCache = new Array(humiditySteps + 1);
+        }
+
+        // Create document fragment for batch DOM operations
+        const fragment = document.createDocumentFragment();
+
         for (let i = 0; i <= humiditySteps; i++) {
-            const line = document.createElement('div');
-            line.className = 'grid-line vertical';
-            line.style.left = `${(i / humiditySteps) * 100}%`;
-
-            const label = document.createElement('div');
-            label.className = 'humidity-axis-label';
+            const positionPercent = `${(i / humiditySteps) * 100}%`;
             const currentValue = this.max_humidity - (i * (this.max_humidity - this.min_humidity) / humiditySteps);
-            label.innerHTML = `${currentValue.toFixed(0)}%`;
-            label.style.left = `${(i / humiditySteps) * 100}%`;
 
-            grid.appendChild(line);
-            if (label.style.left !== '100%' && label.style.left !== '0%') {
-                grid.appendChild(label);
+            // Create or update grid elements
+            if (!this.verticalGridCache[i]) {
+                const line = document.createElement('div');
+                line.className = 'grid-line vertical';
+                line.style.left = positionPercent;
+
+                const label = document.createElement('div');
+                label.className = 'humidity-axis-label';
+
+                this.verticalGridCache[i] = {line, label, value: currentValue};
+            }
+
+            const {line, label, value} = this.verticalGridCache[i];
+            label.textContent = `${value.toFixed(0)}%`;
+            label.style.left = positionPercent;
+
+            fragment.appendChild(line);
+            // Only add labels in the middle (not at 0% or 100%)
+            if (positionPercent !== '100%' && positionPercent !== '0%') {
+                fragment.appendChild(label);
             }
         }
-    },
 
+        grid.appendChild(fragment);
+    },
     updateGhostMap() {
         this.fetchDataForRooms();
     },
-
-
     handleMouseLeave() {
         const banner = this.querySelector('.mouse-custom-tooltip');
         const verticalLine = this.querySelector('.mouse-vertical-line');
         const horizontalLine = this.querySelector('.mouse-horizontal-line');
-        const fadeOut = setInterval(() => {
-            if (!banner.style.opacity) {
-                banner.style.opacity = 1;
-                verticalLine.style.opacity = 1;
-                horizontalLine.style.opacity = 1;
-            }
-            if (banner.style.opacity > 0) {
-                banner.style.opacity -= 0.1;
-                verticalLine.style.opacity -= 0.1;
-                horizontalLine.style.opacity -= 0.1;
-            } else {
-                clearInterval(fadeOut);
-            }
-        }, 100);
+
+        // Use requestAnimationFrame for smoother fadeout
+        let opacity = 1;
+        const fadeOut = () => {
+            if (opacity <= 0) return;
+
+            opacity -= 0.1;
+            banner.style.opacity = opacity;
+            verticalLine.style.opacity = opacity;
+            horizontalLine.style.opacity = opacity;
+
+            requestAnimationFrame(fadeOut);
+        };
+
+        requestAnimationFrame(fadeOut);
     },
 
     buildTooltip() {
-        let rooms = this.querySelector('#rooms');
-        let vpd = 0;
+        const rooms = this.querySelector('#rooms');
         this.config.rooms.forEach((room, index) => {
-            if (this._hass.states[room.humidity] && this._hass.states[room.temperature]) {
-                const humidity = parseFloat(this._hass.states[room.humidity].state);
-                const temperature = parseFloat(this._hass.states[room.temperature].state);
-                let leafTemperature = temperature - this.getLeafTemperatureOffset();
-                if (room.leaf_temperature !== undefined) {
-                    if (this._hass.states[room.leaf_temperature] !== undefined) {
-                        leafTemperature = parseFloat(this._hass.states[room.leaf_temperature].state);
-                    }
+            // Ensure room has both humidity and temperature data
+            if (!this._hass.states[room.humidity] || !this._hass.states[room.temperature]) return;
+
+            const humidity = parseFloat(this._hass.states[room.humidity].state);
+            const temperature = parseFloat(this._hass.states[room.temperature].state);
+
+            // Handle leaf temperature
+            let leafTemperature = temperature - this.getLeafTemperatureOffset();
+            if (room.leaf_temperature && this._hass.states[room.leaf_temperature]) {
+                leafTemperature = parseFloat(this._hass.states[room.leaf_temperature].state);
+            }
+
+            // Calculate VPD
+            const vpd = this.calculateVPD(
+                leafTemperature,
+                temperature,
+                humidity,
+                this._hass.states[room.temperature].attributes['unit_of_measurement']
+            );
+
+            // Calculate position percentages
+            const relativeTemperature = temperature - this.min_temperature;
+            const totalTemperatureRange = this.max_temperature - this.min_temperature;
+            const percentageTemperature = (relativeTemperature / totalTemperatureRange) * 100;
+            const relativeHumidity = this.max_humidity - humidity;
+            const totalHumidityRange = this.max_humidity - this.min_humidity;
+            const percentageHumidity = ((relativeHumidity / totalHumidityRange) * 100).toFixed(1);
+
+            // Create or update room elements
+            if (!rooms.querySelector(`.room_${index}`)) {
+                // Generate room name/icon
+                let name = room.name || `<svg fill="#ffffff" width="13" height="13" viewBox="-1.7 0 20.4 20.4" xmlns="http://www.w3.org/2000/svg" class="cf-icon-svg" stroke="#ffffff"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.32639999999999997"></g><g id="SVGRepo_iconCarrier"><path d="M16.476 10.283A7.917 7.917 0 1 1 8.56 2.366a7.916 7.916 0 0 1 7.916 7.917zm-5.034-2.687a2.845 2.845 0 0 0-.223-1.13A2.877 2.877 0 0 0 9.692 4.92a2.747 2.747 0 0 0-1.116-.227 2.79 2.79 0 0 0-1.129.227 2.903 2.903 0 0 0-1.543 1.546 2.803 2.803 0 0 0-.227 1.128v.02a.792.792 0 0 0 1.583 0v-.02a1.23 1.23 0 0 1 .099-.503 1.32 1.32 0 0 1 .715-.717 1.223 1.223 0 0 1 .502-.098 1.18 1.18 0 0 1 .485.096 1.294 1.294 0 0 1 .418.283 1.307 1.307 0 0 1 .281.427 1.273 1.273 0 0 1 .099.513 1.706 1.706 0 0 1-.05.45 1.546 1.546 0 0 1-.132.335 2.11 2.11 0 0 1-.219.318c-.126.15-.25.293-.365.424-.135.142-.26.28-.374.412a4.113 4.113 0 0 0-.451.639 3.525 3.525 0 0 0-.342.842 3.904 3.904 0 0 0-.12.995v.035a.792.792 0 0 0 1.583 0v-.035a2.324 2.324 0 0 1 .068-.59 1.944 1.944 0 0 1 .187-.463 2.49 2.49 0 0 1 .276-.39c.098-.115.209-.237.329-.363l.018-.02c.129-.144.264-.301.403-.466a3.712 3.712 0 0 0 .384-.556 3.083 3.083 0 0 0 .28-.692 3.275 3.275 0 0 0 .108-.875zM9.58 14.895a.982.982 0 0 0-.294-.707 1.059 1.059 0 0 0-.32-.212l-.004-.001a.968.968 0 0 0-.382-.079 1.017 1.017 0 0 0-.397.08 1.053 1.053 0 0 0-.326.212 1.002 1.002 0 0 0-.215 1.098 1.028 1.028 0 0 0 .216.32 1.027 1.027 0 0 0 .722.295.968.968 0 0 0 .382-.078l.005-.002a1.01 1.01 0 0 0 .534-.534.98.98 0 0 0 .08-.392z"></path></g></svg>`;
+
+                // Create leaf temperature HTML if available
+                let leafTemperatureHtml = "";
+                if (room.leaf_temperature) {
+                    leafTemperatureHtml = `<span class="roomLeaf_${index}">${this.leaf_text ? this.leaf_text + ': ' : ''}${leafTemperature}${this.unit_temperature}</span>`;
                 }
 
-                vpd = this.calculateVPD(leafTemperature, temperature, humidity, this._hass.states[room.temperature].attributes['unit_of_measurement']);
-
-                const relativeTemperature = temperature - this.min_temperature;
-                const totalTemperatureRange = this.max_temperature - this.min_temperature;
-                const percentageTemperature = (relativeTemperature / totalTemperatureRange) * 100;
-                const relativeHumidity = this.max_humidity - humidity;
-                const totalHumidityRange = this.max_humidity - this.min_humidity;
-                let percentageHumidity = ((relativeHumidity / totalHumidityRange) * 100).toFixed(1);
-
-                let showHumidity = humidity;
-
-
-                if (rooms.querySelector(`.room_${index}`) === null) {
-                    let name = room.name;
-                    if (name === undefined) {
-                        name = `<svg fill="#ffffff" width="13" height="13" viewBox="-1.7 0 20.4 20.4" xmlns="http://www.w3.org/2000/svg" class="cf-icon-svg" stroke="#ffffff"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#CCCCCC" stroke-width="0.32639999999999997"></g><g id="SVGRepo_iconCarrier"><path d="M16.476 10.283A7.917 7.917 0 1 1 8.56 2.366a7.916 7.916 0 0 1 7.916 7.917zm-5.034-2.687a2.845 2.845 0 0 0-.223-1.13A2.877 2.877 0 0 0 9.692 4.92a2.747 2.747 0 0 0-1.116-.227 2.79 2.79 0 0 0-1.129.227 2.903 2.903 0 0 0-1.543 1.546 2.803 2.803 0 0 0-.227 1.128v.02a.792.792 0 0 0 1.583 0v-.02a1.23 1.23 0 0 1 .099-.503 1.32 1.32 0 0 1 .715-.717 1.223 1.223 0 0 1 .502-.098 1.18 1.18 0 0 1 .485.096 1.294 1.294 0 0 1 .418.283 1.307 1.307 0 0 1 .281.427 1.273 1.273 0 0 1 .099.513 1.706 1.706 0 0 1-.05.45 1.546 1.546 0 0 1-.132.335 2.11 2.11 0 0 1-.219.318c-.126.15-.25.293-.365.424-.135.142-.26.28-.374.412a4.113 4.113 0 0 0-.451.639 3.525 3.525 0 0 0-.342.842 3.904 3.904 0 0 0-.12.995v.035a.792.792 0 0 0 1.583 0v-.035a2.324 2.324 0 0 1 .068-.59 1.944 1.944 0 0 1 .187-.463 2.49 2.49 0 0 1 .276-.39c.098-.115.209-.237.329-.363l.018-.02c.129-.144.264-.301.403-.466a3.712 3.712 0 0 0 .384-.556 3.083 3.083 0 0 0 .28-.692 3.275 3.275 0 0 0 .108-.875zM9.58 14.895a.982.982 0 0 0-.294-.707 1.059 1.059 0 0 0-.32-.212l-.004-.001a.968.968 0 0 0-.382-.079 1.017 1.017 0 0 0-.397.08 1.053 1.053 0 0 0-.326.212 1.002 1.002 0 0 0-.215 1.098 1.028 1.028 0 0 0 .216.32 1.027 1.027 0 0 0 .722.295.968.968 0 0 0 .382-.078l.005-.002a1.01 1.01 0 0 0 .534-.534.98.98 0 0 0 .08-.392z"></path></g></svg>`;
-                    }
-                    let leafTemperatureHtml = "";
-                    if (room.leaf_temperature !== undefined) {
-                        leafTemperatureHtml = `<span class="roomLeaf_${index}">${this.leaf_text ? this.leaf_text + ': ' : ''}${leafTemperature}${this.unit_temperature}</span>`;
-                    }
-
-                    let htmlTemplate = `
+                // Create room tooltip template
+                const htmlTemplate = `
                     <div class="room room_${index}">
                         <div class="room-pointer-${index} room-pointer room-circle" data-index="${index}"></div>
                         <div class="horizontal-line horizontal-line-${index}" data-index="${index}"></div>
@@ -469,7 +562,7 @@ export const chart = {
                             <span class="room-name">${name}</span>
                             <div class="tooltipAdditionalInformations">
                                 <span class="kpaText_${index}">${this.kpa_text ? this.kpa_text + ': ' : ''}${vpd}</span>
-                                <span class="roomHumidity_${index}">${this.rh_text ? this.rh_text + ': ' : ''}${showHumidity}</span>
+                                <span class="roomHumidity_${index}">${this.rh_text ? this.rh_text + ': ' : ''}${humidity}%</span>
                                 <span class="roomAir_${index}" >${this.air_text ? this.air_text + ': ' : ''}${temperature}${this.unit_temperature}</span>
                                 ${leafTemperatureHtml}
                                 <span class="roomVPD_${index}" class="roomVPD_${index}">${this.getPhaseClass(vpd)}</span>
@@ -477,15 +570,16 @@ export const chart = {
                         </div>
                     </div>
                 `;
-                    rooms.innerHTML += htmlTemplate;
-                    this.updatePointer(index, percentageHumidity, percentageTemperature, room.name, vpd, showHumidity, temperature, leafTemperature);
-                } else {
-                    this.updatePointer(index, percentageHumidity, percentageTemperature, room.name, vpd, showHumidity, temperature, leafTemperature);
-                }
+
+                rooms.insertAdjacentHTML('beforeend', htmlTemplate);
             }
+
+            // Update pointer position and content
+            this.updatePointer(index, percentageHumidity, percentageTemperature, room.name, vpd, humidity, temperature, leafTemperature);
         });
     },
     updatePointer(index, percentageHumidity, percentageTemperature, roomName = "", vpd, humidity, temperature, leafTemperature) {
+        // Get or create pointer element
         const pointer = this.querySelector(`.room-pointer[data-index="${index}"]`) || document.createElement('div');
         pointer.setAttribute('data-index', index.toString());
         pointer.style.left = `${percentageHumidity}%`;
@@ -493,103 +587,105 @@ export const chart = {
         pointer.className = this.enable_triangle ? 'highlight room-pointer room-triangle' : 'highlight room-pointer room-circle';
         pointer.classList.add(`room-pointer-${index}`);
 
+        // Get or create horizontal line
         const horizontalLine = this.querySelector(`.horizontal-line[data-index="${index}"]`) || document.createElement('div');
         horizontalLine.className = `horizontal-line horizontal-line-${index}`;
         horizontalLine.setAttribute('data-index', index.toString());
         horizontalLine.style.top = `calc(${percentageTemperature}%)`;
 
+        // Get or create vertical line
         const verticalLine = this.querySelector(`.vertical-line[data-index="${index}"]`) || document.createElement('div');
         verticalLine.className = `vertical-line vertical-line-${index}`;
         verticalLine.setAttribute('data-index', index.toString());
         verticalLine.style.left = `calc(${percentageHumidity}% - 0.5px)`;
 
+        // Handle legend if enabled
         if (this.enable_legend) {
             const legend = this.querySelector('.vpd-legend');
-            if (!legend) {
-                return;
+            if (legend) {
+                let legendElement = legend.querySelector(`.room-legend-${index}`) || document.createElement('div');
+                legendElement.className = `room-legend room-legend-${index}`;
+                legendElement.innerHTML = roomName || `Room ${index + 1}`;
+                if (!legendElement.isConnected) {
+                    legendElement.addEventListener('mouseover', (event) => {
+                        event.stopImmediatePropagation();
+                        this.showRoomDetails(index);
+                    });
+                    legendElement.addEventListener('mouseleave', (event) => {
+                        event.stopImmediatePropagation();
+                        this.hideRoomDetails(index);
+                    });
+                    legendElement.addEventListener('click', (event) => {
+                        event.stopImmediatePropagation();
+                        this.toggleRoomDetails(index);
+                    });
+                    legend.appendChild(legendElement);
+                }
             }
-            let legendElement = legend.querySelector(`.room-legend-${index}`) || document.createElement('div');
-            legendElement.className = `room-legend room-legend-${index}`;
-            legendElement.innerHTML = roomName || `Room ${index + 1}`;
-            if (!legendElement.isConnected) {
-                legendElement.addEventListener('mouseover', (event) => {
+
+            let tooltip = null;
+
+            if (this.enable_tooltip) {
+                tooltip = this.querySelector(`.custom-tooltip[data-index="${index}"]`) || document.createElement('div');
+                tooltip.style.bottom = `${100 - percentageTemperature}%`;
+                tooltip.style.left = `${percentageHumidity}%`;
+                this.positionTooltip(tooltip, percentageHumidity);
+
+                tooltip.setAttribute('data-index', index.toString());
+
+                if (this.enable_show_always_informations) {
+                    tooltip.querySelector('.tooltipAdditionalInformations').style.display = 'inline';
+                }
+                let kpaText = tooltip.querySelector('.kpaText_' + index);
+                let rhText = tooltip.querySelector('.roomHumidity_' + index);
+                let temperatureText = tooltip.querySelector('.roomAir_' + index);
+                let leafTemperatureText = tooltip.querySelector('.roomLeaf_' + index);
+                let phaseClass = tooltip.querySelector('.roomVPD_' + index);
+
+                kpaText.innerHTML = `${this.kpa_text ? this.kpa_text + ': ' : ''}${vpd}`;
+                rhText.innerHTML = `${this.rh_text ? this.rh_text + ': ' : ''}${humidity}%`;
+                temperatureText.innerHTML = `${this.air_text ? this.air_text + ': ' : ''}${temperature}${this.unit_temperature}`;
+                if (leafTemperatureText) {
+                    leafTemperatureText.innerHTML = `${this.leaf_text ? this.leaf_text + ': ' : ''}${leafTemperature}${this.unit_temperature}`;
+                }
+                phaseClass.innerHTML = `${this.getPhaseClass(vpd)}`;
+                tooltip.addEventListener('mouseover', (event) => {
                     event.stopImmediatePropagation();
                     this.showRoomDetails(index);
                 });
-                legendElement.addEventListener('mouseleave', (event) => {
+                pointer.addEventListener('mouseover', (event) => {
+                    event.stopImmediatePropagation();
+                    this.showRoomDetails(index);
+                });
+
+                tooltip.addEventListener('mouseleave', (event) => {
                     event.stopImmediatePropagation();
                     this.hideRoomDetails(index);
                 });
-                legendElement.addEventListener('click', (event) => {
+                pointer.addEventListener('mouseleave', (event) => {
                     event.stopImmediatePropagation();
-                    this.toggleRoomDetails(index);
+                    this.hideRoomDetails(index);
                 });
-                legend.appendChild(legendElement);
+
+
+                if (this.enable_ghostclick) {
+                    tooltip.addEventListener('click', (event) => {
+                        event.stopImmediatePropagation();
+                        this.toggleRoomDetails(index);
+                    });
+                    pointer.addEventListener('click', (event) => {
+                        event.stopImmediatePropagation();
+                        this.toggleRoomDetails(index);
+                    });
+                }
+            } else {
+                tooltip = this.querySelector(`.custom-tooltip[data-index="${index}"]`)
+                if (tooltip) {
+                    tooltip.remove();
+                }
             }
+            return {pointer, horizontalLine, verticalLine, tooltip};
         }
-
-        let tooltip = null;
-
-        if (this.enable_tooltip) {
-            tooltip = this.querySelector(`.custom-tooltip[data-index="${index}"]`) || document.createElement('div');
-            tooltip.style.bottom = `${100 - percentageTemperature}%`;
-            tooltip.style.left = `${percentageHumidity}%`;
-            this.positionTooltip(tooltip, percentageHumidity);
-
-            tooltip.setAttribute('data-index', index.toString());
-
-            if (this.enable_show_always_informations) {
-                tooltip.querySelector('.tooltipAdditionalInformations').style.display = 'inline';
-            }
-            let kpaText = tooltip.querySelector('.kpaText_' + index);
-            let rhText = tooltip.querySelector('.roomHumidity_' + index);
-            let temperatureText = tooltip.querySelector('.roomAir_' + index);
-            let leafTemperatureText = tooltip.querySelector('.roomLeaf_' + index);
-            let phaseClass = tooltip.querySelector('.roomVPD_' + index);
-
-            kpaText.innerHTML = `${this.kpa_text ? this.kpa_text + ': ' : ''}${vpd}`;
-            rhText.innerHTML = `${this.rh_text ? this.rh_text + ': ' : ''}${humidity}%`;
-            temperatureText.innerHTML = `${this.air_text ? this.air_text + ': ' : ''}${temperature}${this.unit_temperature}`;
-            if (leafTemperatureText) {
-                leafTemperatureText.innerHTML = `${this.leaf_text ? this.leaf_text + ': ' : ''}${leafTemperature}${this.unit_temperature}`;
-            }
-            phaseClass.innerHTML = `${this.getPhaseClass(vpd)}`;
-            tooltip.addEventListener('mouseover', (event) => {
-                event.stopImmediatePropagation();
-                this.showRoomDetails(index);
-            });
-            pointer.addEventListener('mouseover', (event) => {
-                event.stopImmediatePropagation();
-                this.showRoomDetails(index);
-            });
-
-            tooltip.addEventListener('mouseleave', (event) => {
-                event.stopImmediatePropagation();
-                this.hideRoomDetails(index);
-            });
-            pointer.addEventListener('mouseleave', (event) => {
-                event.stopImmediatePropagation();
-                this.hideRoomDetails(index);
-            });
-
-
-            if (this.enable_ghostclick) {
-                tooltip.addEventListener('click', (event) => {
-                    event.stopImmediatePropagation();
-                    this.toggleRoomDetails(index);
-                });
-                pointer.addEventListener('click', (event) => {
-                    event.stopImmediatePropagation();
-                    this.toggleRoomDetails(index);
-                });
-            }
-        } else {
-            tooltip = this.querySelector(`.custom-tooltip[data-index="${index}"]`)
-            if (tooltip) {
-                tooltip.remove();
-            }
-        }
-        return {pointer, horizontalLine, verticalLine, tooltip};
     },
     toggleRoomDetails(index) {
         this.clickedTooltip = !this.clickedTooltip;
