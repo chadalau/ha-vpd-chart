@@ -52,18 +52,19 @@ export const chart = {
             if (!this.content.querySelector('#vpd-table-container')) {
                 this.content.appendChild(tableContainer);
             }
-            await this.buildTable(tableContainer);
+            await this.buildCanvas(tableContainer);
 
             this.setupEventListeners.call(this);
 
             this.updateGhostMapPeriodically.call(this);
         } else {
             const currentTime = Date.now();
-            const shouldUpdateTable = this.shouldUpdate() ||
-                (this.lastUpdate === undefined || currentTime - this.lastUpdate > 1000);
+            const shouldUpdateTable = (this.lastUpdate === undefined || currentTime - this.lastUpdate > (1500 + Math.random() * 1000));
 
             if (shouldUpdateTable) {
-                await this.buildTable(this.querySelector('#vpd-table-container'));
+                requestAnimationFrame(async () => {
+                    await this.buildCanvas(this.querySelector('#vpd-table-container'));
+                });
                 this.lastUpdate = currentTime;
             }
         }
@@ -267,122 +268,135 @@ export const chart = {
         }
         tooltip.style.visibility = 'visible';
     },
-    async buildTable(container) {
-        const maxHumidity = this.max_humidity;
-        const stepsHumidity = this.steps_humidity;
-        const vpdMatrixLength = Math.ceil((this.max_temperature - this.min_temperature) / this.steps_temperature) + 1;
 
-        const createRow = (row) => {
-            const rowElement = document.createElement('div');
-            rowElement.className = 'vpd-row';
-
-            const segments = [];
-            let currentClass = null;
-            let startIndex = 0;
-            const rowLength = row.length;
-
-            for (let index = 0; index < rowLength; index++) {
-                const cell = row[index];
-                if (currentClass === null || cell.className !== currentClass) {
-                    if (currentClass !== null) {
-                        segments.push({
-                            className: currentClass,
-                            width: (index - startIndex) * stepsHumidity * 100 / maxHumidity,
-                            color: this.getColorByClassName(currentClass)
-                        });
+    async buildCanvas(container) {
+        let currentLeafTemperatureOffset;
+        const currentRoom = this.config.rooms[this.currentIndex];
+        if (currentRoom) {
+            const temperature = parseFloat(this._hass.states[currentRoom.temperature]?.state);
+            if (!isNaN(temperature)) {
+                this.unit_temperature = this._hass.states[currentRoom.temperature].attributes['unit_of_measurement'];
+                console.log(this.unit_temperature);
+                if (currentRoom.leaf_temperature && this._hass.states[currentRoom.leaf_temperature]) {
+                    const leafTemperature = parseFloat(this._hass.states[currentRoom.leaf_temperature].state);
+                    if (!isNaN(leafTemperature)) {
+                        currentLeafTemperatureOffset = temperature - leafTemperature;
+                    } else {
+                        currentLeafTemperatureOffset = this.getLeafTemperatureOffset(); // Fallback
                     }
-                    currentClass = cell.className;
-                    startIndex = index;
-                }
-            }
-
-            segments.push({
-                className: currentClass,
-                width: (rowLength - startIndex) * stepsHumidity * 100 / maxHumidity,
-                color: this.getColorByClassName(currentClass)
-            });
-
-            const totalWidth = segments.reduce((sum, segment) => sum + segment.width, 0);
-            const widthAdjustmentFactor = 100 / totalWidth;
-
-            let accumulatedWidth = 0;
-            const segmentsLength = segments.length;
-            const fragment = document.createDocumentFragment();
-            for (let i = 0; i < segmentsLength; i++) {
-                const segment = segments[i];
-                let adjustedWidth;
-
-                // Ensure last segment fills remaining space precisely
-                if (i === segmentsLength - 1) {
-                    adjustedWidth = (100 - accumulatedWidth).toFixed(2);
                 } else {
-                    adjustedWidth = (segment.width * widthAdjustmentFactor).toFixed(2);
-                    accumulatedWidth += parseFloat(adjustedWidth);
+                    currentLeafTemperatureOffset = this.getLeafTemperatureOffset(); // Fallback
                 }
-
-                const div = document.createElement('div');
-                div.className = `cell ${segment.className}`;
-                div.style.cssText = `background-color: ${segment.color}; box-shadow: 0 0 0 1px ${segment.color}; width: ${adjustedWidth}%;`;
-                fragment.appendChild(div);
+            } else {
+                currentLeafTemperatureOffset = this.getLeafTemperatureOffset(); // Fallback
             }
-            rowElement.appendChild(fragment);
-            return rowElement;
-        };
+        } else {
+            currentLeafTemperatureOffset = this.getLeafTemperatureOffset(); // Fallback
+        }
 
-        const processRoom = async (room, roomIndex) => {
+
+        if (this.vpdMatrix === null || currentLeafTemperatureOffset !== this._previousLeafTemperatureOffset) {
+
+            this.vpdMatrix = this.createVPDMatrix(
+                this.min_temperature,
+                this.max_temperature,
+                this.steps_temperature,
+                this.max_humidity,
+                this.min_humidity,
+                this.steps_humidity,
+                currentLeafTemperatureOffset
+            );
+            this._previousLeafTemperatureOffset = currentLeafTemperatureOffset; // save current offset
+        }
+
+
+        const processRoomCanvas = async (room, roomIndex) => {
             return new Promise(resolve => {
                 setTimeout(() => {
                     let tableContainer = container.querySelector(`.room-${roomIndex}-table-container`);
                     if (!tableContainer) {
                         tableContainer = document.createElement('div');
                         tableContainer.className = `room-${roomIndex}-table-container table-container`;
+                        tableContainer.style.display = (roomIndex === this.currentIndex) ? 'flex' : 'none';
                         container.appendChild(tableContainer);
-                    }
-
-                    // Get temperature values
-                    const temperature = parseFloat(this._hass.states[room.temperature].state);
-                    let leafTemperature;
-                    let leafTemperatureOffset;
-
-                    // Handle leaf temperature if available
-                    if (room.leaf_temperature && this._hass.states[room.leaf_temperature]) {
-                        leafTemperature = parseFloat(this._hass.states[room.leaf_temperature].state);
-                        leafTemperatureOffset = temperature - leafTemperature;
                     } else {
-                        leafTemperatureOffset = this.getLeafTemperatureOffset();
+                        tableContainer.style.display = (roomIndex === this.currentIndex) ? 'flex' : 'none';
                     }
 
-                    // Create VPD matrix and render it
-                    const vpdMatrix = this.createVPDMatrix(
-                        this.min_temperature,
-                        this.max_temperature,
-                        this.steps_temperature,
-                        this.max_humidity,
-                        this.min_humidity,
-                        this.steps_humidity,
-                        leafTemperatureOffset
-                    );
-
-                    // Create and append all rows at once using document fragment
-                    const fragment = document.createDocumentFragment();
-                    for (let i = 0; i < vpdMatrixLength; i++) {
-                        fragment.appendChild(createRow(vpdMatrix[i]));
+                    let canvas = tableContainer.querySelector('canvas');
+                    if (!canvas) {
+                        canvas = document.createElement('canvas');
+                        tableContainer.replaceChildren(canvas);
+                        canvas.style.width = '100%';
+                        canvas.style.height = '100%';
+                        canvas.style.display = 'block';
                     }
 
-                    tableContainer.replaceChildren(fragment);
+                    const rect = tableContainer.getBoundingClientRect();
+                    if (rect.width === 0 || rect.height === 0 || tableContainer.style.display === 'none') {
+                        resolve();
+                        return;
+                    }
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        console.error("VPD Chart: Could not get 2D context for room", roomIndex);
+                        resolve();
+                        return;
+                    }
+
+                    const vpdMatrix = this.vpdMatrix;
+                    if (!vpdMatrix || vpdMatrix.length === 0 || !vpdMatrix[0] || vpdMatrix[0].length === 0) {
+                        console.error("VPD Chart: Invalid VPD Matrix for drawing.");
+                        resolve();
+                        return;
+                    }
+
+                    const numTempSteps = vpdMatrix.length;
+                    const numHumSteps = vpdMatrix[0].length;
+
+                    const cellWidth = canvas.width / numHumSteps;
+                    const cellHeight = canvas.height / numTempSteps;
+
+                    for (let i = 0; i < numTempSteps; i++) {
+                        for (let j = 0; j < numHumSteps; j++) {
+                            if (!vpdMatrix[i] || vpdMatrix[i][j] === undefined) {
+                                continue;
+                            }
+                            const cellData = vpdMatrix[i][j];
+                            if (!cellData || typeof cellData.color === 'undefined') {
+                                continue;
+                            }
+                            const x = j * cellWidth;
+                            const y = i * cellHeight;
+
+
+                            ctx.fillStyle = cellData.color;
+                            ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(cellWidth + 0.5), Math.ceil(cellHeight + 0.5));
+                        }
+                    }
                     resolve();
                 }, 0);
             });
         };
 
-        // Process all rooms asynchronously for better responsiveness
+        if (this.currentIndex === undefined) {
+            this.currentIndex = 0;
+        }
         const roomPromises = this.config.rooms.map((room, roomIndex) =>
-            processRoom(room, roomIndex)
+            processRoomCanvas(room, roomIndex)
         );
 
-        await Promise.all(roomPromises);
-    },
 
+        try {
+            await Promise.all(roomPromises);
+            // console.log("VPD Chart: All room canvases processed.");
+        } catch (error) {
+            console.error("VPD Chart: Error processing rooms for canvas drawing", error);
+        }
+    },
     addGridLines() {
         let grid = this.querySelector('.vpd-grid');
         if (!grid) {
@@ -436,7 +450,8 @@ export const chart = {
         grid.appendChild(fragment);
     },
 
-    updateTemperatureUnit(newUnit) {
+    updateTemperatureUnit(newUnit = "°C") {
+
         this.unit_temperature = newUnit;
 
         // Update all temperature labels if grid cache exists

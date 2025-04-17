@@ -1,5 +1,5 @@
 // Set version for the card 
-window.vpdChartVersion = "2.0.0";
+window.vpdChartVersion = "2.1.0";
 
 import {methods} from './methods.js';
 import {chart} from './chart.js';
@@ -57,6 +57,7 @@ class HaVpdChart extends HTMLElement {
         this.updateRunning = false;
         this.configMemory = {};
         this.ghostmap_hours = 24;
+        this.unit_temperature = "°C";
         this.clickedTooltip = false;
     }
 
@@ -169,7 +170,7 @@ class HaVpdChart extends HTMLElement {
         });
 
         if (this.config.calculateVPD) {
-            this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', 'unit_of_measuerment', this.config.calculateVPD);
+            this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', 'unit_of_measurement', this.config.calculateVPD);
         }
     }
 }

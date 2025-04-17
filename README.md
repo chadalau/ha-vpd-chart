@@ -78,6 +78,23 @@ rooms:
     name: Tent 2
 ```
 
+Easy start for Fahrenheit Chart View:
+
+***Attention: your sensor needs to have °F as unit of measurement***
+
+```yaml
+type: custom:ha-vpd-chart
+rooms:
+  - name: Raum 2
+    temperature: input_number.test_temp_2
+    humidity: input_number.test_rh_2
+    leaf_temperature: input_number.test_leaf_temp_2
+min_temperature: 40
+max_temperature: 96
+min_humidity: 26
+max_humidity: 90
+```
+
 Easy start as Bar View:
 
 ```yaml
@@ -173,6 +190,40 @@ calculateVPD: |2-
 | enable_show_always_informations | boolean        | optional     | `true`                                  | Enable show always tooltip informations for chart                                                 |
 | enable_legend                   | boolean        | optional     | `true`                                  | Enable Legend function for chart                                                                  |
 | calculateVPD                    | string         | optional     | See description                         | Custom function to calculate VPD.                                                                 |
+
+**Template for VPD Sensor History**
+
+ATTENTION: EDIT THE YOUR_*_SENSOR PARTS WITH YOUR SENSOR NAMES!
+
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      gd_vpd:
+        icon_template: 'mdi:water-percent'
+        unit_of_measurement: kPa
+        value_template: |
+
+          {% set T = states('sensor.YOUR_TEMPERATURE_SENSOR')|float %}
+          {% set RH = states('sensor.YOUR_HUMIDITY_SENSOR')|float %}
+          {% set SVP = 0.61078 * e ** (T / (T + 237.3) * 17.2694) %}
+          {% set VPD = SVP * ((100 - RH) / 100) %}
+          {{ VPD | round(2) }}
+  - platform: template
+    sensors:
+      gd_vpd_leaf:
+        icon_template: 'mdi:leaf'
+        unit_of_measurement: kPa
+        value_template: >
+          {% set T = states('sensor.YOUR_TEMPERATURE_SENSOR')|float %}
+          {% set RH = states('sensor.YOUR_HUMIDITY_SENSOR')|float %}
+          {% set LT = states('sensor.YOUR_TEMPERATURE_SENSOR')|float - 2 %} # OR {% set LT = states('sensor.YOUR_INFRARED_SENSOR')|float %} 
+          {% set ASVP = 0.61078 * e ** (T / (T + 237.3) * 17.2694) %}
+          {% set LSVP = 0.61078 * e ** (LT / (LT + 237.3) * 17.2694) %}
+          {% set LVPD = LSVP - (ASVP * RH / 100) %}
+
+          {{ LVPD | round(2) }}
+```
 
 **Default `vpd_phases` Configuration:**
 

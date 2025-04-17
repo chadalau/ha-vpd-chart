@@ -1,6 +1,6 @@
 export const methods = {
-    calculateVPD(Tleaf, Tair, RH, unit_of_measuerment = "°F") {
-        if (unit_of_measuerment === "°F" || unit_of_measuerment === "F") {
+    calculateVPD(Tleaf, Tair, RH, unit_of_measurement = "°C") {
+        if (unit_of_measurement === "°F" || unit_of_measurement === "F") {
             Tleaf = (Tleaf - 32) * 5 / 9;
             Tair = (Tair - 32) * 5 / 9;
         }
@@ -204,17 +204,26 @@ export const methods = {
 
         return haComboBox;
     },
-    createCheckbox(label, index, value, property, title = '') {
-        const haFormfield = document.createElement('ha-formfield');
-        haFormfield.label = label;
-        if (title !== '') haFormfield.title = title;
-        haFormfield.setAttribute('data-index', index);
-        const checkbox = document.createElement('ha-checkbox');
-        checkbox.id = property;
-        checkbox.checked = value;
-        checkbox.setAttribute('data-configvalue', property);
-        haFormfield.appendChild(checkbox);
-        return haFormfield;
+    getColorForVpd(vpd) {
+        const phases = this.vpd_phases || [];
+        for (const phase of phases) {
+            if (phase.color === undefined) continue;
+
+            if (phase.upper === undefined) {
+                if (phase.lower !== undefined && vpd >= phase.lower) {
+                    return phase.color;
+                }
+            } else if (phase.lower === undefined) {
+                if (vpd <= phase.upper) {
+                    return phase.color;
+                }
+            } else {
+                if (vpd >= phase.lower && vpd <= phase.upper) {
+                    return phase.color;
+                }
+            }
+        }
+        return 'grey';
     },
     fireEvent(node, type, detail = {}, options = {}) {
         const event = new Event(type, {

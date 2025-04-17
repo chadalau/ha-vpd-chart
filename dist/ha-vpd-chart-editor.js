@@ -1,108 +1,45 @@
 import {methods} from './methods.js';
-
 import {MultiRange} from './ha-vpd-chart-editor-multiRange.js';
 
+const DEFAULT_CONFIG = {
+    type: 'custom:ha-vpd-chart',
+    rooms: [{name: '', temperature: '', leaf_temperature: '', humidity: '', min_temperature: 5, max_temperature: 35, min_humidity: 10, max_humidity: 90}],
+    vpd_phases: [
+        {upper: 0, className: 'gray-danger-zone', color: '#999999'},
+        {lower: 0, upper: 0.4, className: 'under-transpiration', color: '#1a6c9c'},
+        {lower: 0.4, upper: 0.8, className: 'early-veg', color: '#22ab9c'},
+        {lower: 0.8, upper: 1.2, className: 'late-veg', color: '#9cc55b'},
+        {lower: 1.2, upper: 1.6, className: 'mid-late-flower', color: '#e7c12b'},
+        {lower: 1.6, className: 'danger-zone', color: '#ce4234'},
+    ],
+    is_bar_view: false,
+    min_height: 200,
+    leaf_temperature_offset: 2,
+    enable_tooltip: true,
+    air_text: 'Air',
+    leaf_text: 'Leaf',
+    rh_text: 'RH',
+    kpa_text: 'kPa',
+    enable_axes: true,
+    enable_ghostclick: true,
+    enable_ghostmap: true,
+    enable_triangle: true,
+    enable_crosshair: true,
+    enable_zoom: true,
+    enable_show_always_informations: true,
+    enable_legend: true,
+    ghostmap_hours: 24,
+    antialiasing: 5,
+    unit_temperature: '°C',
+};
+
 export class HaVpdChartEditor extends HTMLElement {
-    config = {
-        type: 'custom:ha-vpd-chart', rooms: [], vpd_phases: []
-    };
+    config = {};
 
     constructor() {
         super();
-        this.config = this.initializeDefaults(this.config);
         this.attachShadow({mode: 'open'});
-    }
-
-    initializeDefaults(config) {
-        if (config.vpd_phases === undefined) {
-            config.vpd_phases = [];
-        }
-        if (config.vpd_phases.length === 0) {
-            config.vpd_phases = [{upper: 0, className: 'gray-danger-zone', color: '#999999'}, {lower: 0, upper: 0.4, className: 'under-transpiration', color: '#1a6c9c'}, {lower: 0.4, upper: 0.8, className: 'early-veg', color: '#22ab9c'}, {lower: 0.8, upper: 1.2, className: 'late-veg', color: '#9cc55b'}, {lower: 1.2, upper: 1.6, className: 'mid-late-flower', color: '#e7c12b'}, {lower: 1.6, className: 'danger-zone', color: '#ce4234'},];
-        }
-        if (config.rooms === undefined) {
-            config.rooms = [];
-        }
-        if (config.sensors !== undefined) {
-            config.rooms = config.sensors;
-        }
-        if (config.rooms.length === 0) {
-            config.rooms = [{
-                temperature: '', humidity: '', name: ''
-            }];
-        }
-        if (config.is_bar_view === undefined) {
-            config.is_bar_view = false;
-        }
-        if (config.min_temperature === undefined) {
-            config.min_temperature = 5;
-        }
-        if (config.max_temperature === undefined) {
-            config.max_temperature = 35;
-        }
-        if (config.min_humidity === undefined) {
-            config.min_humidity = 10;
-        }
-        if (config.max_humidity === undefined) {
-            config.max_humidity = 90;
-        }
-        if (config.min_height === undefined) {
-            config.min_height = 200;
-        }
-        if (config.leaf_temperature_offset === undefined) {
-            config.leaf_temperature_offset = 2;
-        }
-        if (config.enable_tooltip === undefined) {
-            config.enable_tooltip = true;
-        }
-        if (config.air_text === undefined) {
-            config.air_text = "Air";
-        }
-        if (config.leaf_text === undefined) {
-            config.leaf_text = "Leaf";
-        }
-        if (config.rh_text === undefined) {
-            config.rh_text = "RH";
-        }
-        if (config.kpa_text === undefined) {
-            config.kpa_text = "kPa";
-        }
-        if (config.enable_axes === undefined) {
-            config.enable_axes = true;
-        }
-        if (config.enable_ghostclick === undefined) {
-            config.enable_ghostclick = true;
-        }
-        if (config.enable_ghostmap === undefined) {
-            config.enable_ghostmap = true;
-        }
-        if (config.enable_triangle === undefined) {
-            config.enable_triangle = true;
-        }
-        if (config.enable_crosshair === undefined) {
-            config.enable_crosshair = true;
-        }
-        if (config.enable_zoom === undefined) {
-            config.enable_zoom = true;
-        }
-        if (config.enable_show_always_informations === undefined) {
-            config.enable_show_always_informations = true;
-        }
-        if (config.enable_legend === undefined) {
-            config.enable_legend = true;
-        }
-        if (config.ghostmap_hours === undefined) {
-            config.ghostmap_hours = 24;
-        }
-        if (config.antialiasing === undefined) {
-            config.antialiasing = 5;
-        }
-        if (config.unit_temperature === undefined) {
-            config.unit_temperature = '°C';
-        }
-
-        return config;
-
+        this.config = this._mergeDefaults({});
     }
 
     set hass(hass) {
@@ -110,190 +47,192 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     get _air_text() {
-        return this.config.air_text || '';
+        return this.config.air_text;
     }
 
     get _leaf_text() {
-        return this.config.leaf_text || '';
+        return this.config.leaf_text;
     }
 
     get _rh_text() {
-        return this.config.rh_text || '';
+        return this.config.rh_text;
     }
 
     get _kpa_text() {
-        return this.config.kpa_text || '';
+        return this.config.kpa_text;
     }
 
     get _vpd_phases() {
-        return this.config.vpd_phases !== undefined ? this.config.vpd_phases : [{upper: 0, className: 'gray-danger-zone', color: '#999999'}, {lower: 0, upper: 0.4, className: 'under-transpiration', color: '#1a6c9c'}, {lower: 0.4, upper: 0.8, className: 'early-veg', color: '#22ab9c'}, {lower: 0.8, upper: 1.2, className: 'late-veg', color: '#9cc55b'}, {lower: 1.2, upper: 1.6, className: 'mid-late-flower', color: '#e7c12b'}, {lower: 1.6, className: 'danger-zone', color: '#ce4234'},];
+        return this.config.vpd_phases;
     }
 
     get _min_temperature() {
-        return this.config.min_temperature !== undefined ? this.config.min_temperature : 5;
+        return this.config.min_temperature;
     }
 
     get _max_temperature() {
-        return this.config.max_temperature !== undefined ? this.config.max_temperature : 35;
+        return this.config.max_temperature;
     }
 
     get _min_humidity() {
-        return this.config.min_humidity !== undefined ? this.config.min_humidity : 0;
+        return this.config.min_humidity;
     }
 
     get _max_humidity() {
-        return this.config.max_humidity !== undefined ? this.config.max_humidity : 100;
+        return this.config.max_humidity;
     }
 
     get _min_height() {
-        return this.config.min_height !== undefined ? this.config.min_height : 200;
+        return this.config.min_height;
     }
 
     get _leaf_temperature_offset() {
-        return this.config.leaf_temperature_offset !== undefined ? this.config.leaf_temperature_offset : 2;
+        return this.config.leaf_temperature_offset;
     }
 
     get _is_bar_view() {
-        return this.config.is_bar_view || false;
+        return this.config.is_bar_view;
     }
 
     get _enable_axes() {
-        return this.config.enable_axes !== undefined ? this.config.enable_axes : true;
+        return this.config.enable_axes;
     }
 
     get _enable_ghostclick() {
-        return this.config.enable_ghostclick !== undefined ? this.config.enable_ghostclick : true;
+        return this.config.enable_ghostclick;
     }
 
     get _enable_ghostmap() {
-        return this.config.enable_ghostmap !== undefined ? this.config.enable_ghostmap : true;
+        return this.config.enable_ghostmap;
     }
 
     get _enable_triangle() {
-        return this.config.enable_triangle !== undefined ? this.config.enable_triangle : true;
+        return this.config.enable_triangle;
     }
 
     get _enable_crosshair() {
-        return this.config.enable_crosshair !== undefined ? this.config.enable_crosshair : true;
+        return this.config.enable_crosshair;
     }
 
     get _enable_tooltip() {
-        return this.config.enable_tooltip !== undefined ? this.config.enable_tooltip : true;
+        return this.config.enable_tooltip;
     }
 
     get _ghostmap_hours() {
-        return this.config.ghostmap_hours !== undefined ? this.config.ghostmap_hours : 24;
+        return this.config.ghostmap_hours;
     }
 
     get _antialiasing() {
-        return this.config.antialiasing !== undefined ? this.config.antialiasing : 5;
+        return this.config.antialiasing;
     }
 
     get _unit_temperature() {
-        return this.config.unit_temperature || 'C';
+        return this.config.unit_temperature;
     }
 
     get _enable_zoom() {
-        return this.config.enable_zoom !== undefined ? this.config.enable_zoom : true;
+        return this.config.enable_zoom;
     }
 
     get _enable_show_always_informations() {
-        return this.config.enable_show_always_informations !== undefined ? this.config.enable_show_always_informations : true;
+        return this.config.enable_show_always_informations;
     }
 
     get _enable_legend() {
-        return this.config.enable_legend !== undefined ? this.config.enable_legend : true;
+        return this.config.enable_legend;
+    }
+
+    _mergeDefaults(userConfig) {
+        const cfg = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+        Object.keys(userConfig).forEach(key => {
+            if (userConfig[key] !== undefined) cfg[key] = userConfig[key];
+        });
+        return cfg;
     }
 
     setConfig(config) {
-        let loadedConfig = {...config};
-        this.config = this.initializeDefaults(loadedConfig);
-
+        this.config = this._mergeDefaults(config);
         if (this.config.calculateVPD) {
             this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', this.config.calculateVPD);
         }
     }
 
+    copyConfig() {
+        return JSON.parse(JSON.stringify(this.config));
+    }
+
     checkValue(target) {
         let value = target.value;
-        if (target.tagName === "HA-CHECKBOX") {
-            if (target.checked === "checked") {
-                target.checked = true;
-            }
-            value = target.checked;
+        if (target.tagName === 'HA-CHECKBOX') {
+            return target.checked;
         }
-        if (typeof value === 'string' && !isNaN(value)) {
-            value = this.toFixedNumber(value);
+        if (typeof value === 'string' && value.trim() !== '' && !isNaN(value)) {
+            return parseFloat(value);
         }
-
-        if (isNaN(value)) {
-            value = target.value;
-        }
-
-        if (value === "on") {
-            value = true;
-        }
-
-        if (value === "off") {
-            value = false;
-        }
-        if (value === "") {
-            value = undefined;
-        }
-
-        if (target.detail !== undefined && target.detail.value !== undefined) {
-            value = target.detail.value;
-        }
-        if (target.detail !== undefined && target.detail.value === undefined) {
-            value = undefined;
-            if (target.currentTarget.renderOptions.host.renderRoot.activeElement !== null) {
-                target.currentTarget.renderOptions.host.renderRoot.activeElement.__value = "";
-            }
-            target.currentTarget.renderOptions.host.__value = "";
+        if (value === 'on') return true;
+        if (value === 'off') return false;
+        if (value === '') return undefined;
+        if (target.detail && target.detail.value !== undefined) {
+            return target.detail.value;
         }
         return value;
     }
 
     handleValueChange = (ev) => {
-        let target = ev.target;
-        if (ev.target === undefined) {
-            target = ev;
+        const target = ev.target || ev;
+        const key = target.id;
+        const value = this.checkValue(target);
+        const cfg = this.copyConfig();
+        if (cfg[key] !== value) {
+            cfg[key] = value;
+            this.config = cfg;
+            this.fireEvent(this, 'config-changed', {config: cfg});
         }
-        const configValue = target.getAttribute('id');
-        let value = this.checkValue(target);
-        let configCopy = this.copyConfig();
-        if (configCopy[configValue] !== value) {
-            configCopy[configValue] = value;
-            this.fireEvent(this, 'config-changed', {config: configCopy});
-        }
-        this.config = configCopy;
-
     }
 
     handleVPDPhaseChange = (ev) => {
-        const target = ev.target;
-        const index = target.getAttribute('data-index');
-        let value = target.value;
-        if (this._vpd_phases[index].className !== value) {
-            if (Object.isExtensible(this.config.vpd_phases[index])) {
-                this.config.vpd_phases[index].className = value;
-            } else {
-                console.warn('Cannot define property on a non-extensible object');
-            }
-            this.fireEvent(this, 'config-changed', {config: this.config});
+        const idx = Number(ev.target.dataset.index);
+        const newClass = ev.target.value;
+        const cfg = this.copyConfig();
+        if (cfg.vpd_phases[idx].className !== newClass) {
+            cfg.vpd_phases[idx].className = newClass;
+            this.config = cfg;
+            this.fireEvent(this, 'config-changed', {config: cfg});
         }
     }
 
     connectedCallback() {
-        import('./lang/' + this._hass.language + '.js').then((module) => {
-            this.language = module.language;
-            this.render();
-            this.initValues();
-            this.initRooms();
-            this.initColorEditor();
-            this.initAddButton();
-            this.initFormulaEditor();
-        }).catch(() => {
+        setTimeout(() => {
+            if (this.shadowRoot) {
+                this.shadowRoot.addEventListener('mouseover', this.showGlobalTooltip.bind(this));
+                this.shadowRoot.addEventListener('mouseout', this.hideGlobalTooltip.bind(this));
+            } else {
+                console.error('shadowRoot not found when trying to attach listeners.');
+            }
+        }, 0);
+
+        try {
+            import('./lang/' + this._hass.language + '.js').then((module) => {
+                this.language = module.language;
+                this.render();
+                this.initValues();
+                this.initRooms();
+                this.initColorEditor();
+                this.initAddButton();
+                this.initFormulaEditor();
+            }).catch(() => {
+                import('./lang/en.js').then((module) => {
+                    this.language = module.language;
+                    this.render();
+                    this.initValues();
+                    this.initRooms();
+                    this.initColorEditor();
+                    this.initAddButton();
+                    this.initFormulaEditor();
+                });
+            });
+        } catch (error) {
+            console.error("Error loading language file:", error);
             import('./lang/en.js').then((module) => {
                 this.language = module.language;
                 this.render();
@@ -302,188 +241,63 @@ export class HaVpdChartEditor extends HTMLElement {
                 this.initColorEditor();
                 this.initAddButton();
                 this.initFormulaEditor();
-            });
-        });
+            }).catch(err => console.error("Failed to load fallback language file:", err));
+        }
     }
 
     render() {
         this.shadowRoot.innerHTML = `<style>
-    @import '/local/community/ha-vpd-chart/ha-vpd-chart-editor.css?v=${window.vpdChartVersion}'
+@import '/local/community/ha-vpd-chart/ha-vpd-chart-editor.css?v=${window.vpdChartVersion}'
 </style>
 <div class="vpd-chart-config">
-    <button type="button" class="collapsible ">${this.language.buttons.rooms}</button>
-    <div class="content">
-        <div>
-            <div class="roomEditor"></div>
-        </div>
-    </div>
-    <button type="button" class="collapsible active">${this.language.buttons.main_settings}</button>
-    <div class="content" style="max-height:fit-content;">
-        <div>
-            <table>
-                <tr>
-                    <td>
-                        <ha-textfield label="${this.language.air_text}" id="air_text"></ha-textfield>
-                    </td>         
-                   <td>
-                        <ha-textfield label="${this.language.leaf_text}" id="leaf_text"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield label="${this.language.rh_text}" id="rh_text"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield label="${this.language.kpa_text}" id="kpa_text"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_temperature}" id="min_temperature"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.max_temperature}" id="max_temperature"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_humidity}" id="min_humidity"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.max_humidity}" id="max_humidity"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield type="text" label="${this.language.leaf_temperature_offset}" id="leaf_temperature_offset"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.ghostmap_hours}" id="ghostmap_hours"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" min="1" max="10" type="number" title="${this.language.antialiasing}" label="${this.language.antialiasing.substring(0, 20)}..." id="antialiasing"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_height}" id="min_height"></ha-textfield>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    </div>
-    <button type="button" class="collapsible">${this.language.buttons.features}</button>
-    <div class="content">
-        <div>
-            <table>
-                <tr>
-                    <td>
-                        <ha-formfield data-title="${this.language.description.is_bar_view}" label="${this.language.titles.is_bar_view}">
-                            <ha-checkbox id="is_bar_view"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_axes}" label="${this.language.titles.enable_axes}">
-                            <ha-checkbox id="enable_axes"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_ghostmap}" label="${this.language.titles.enable_ghostmap}">
-                            <ha-checkbox id="enable_ghostmap"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_ghostclick}" label="${this.language.titles.enable_ghostclick}">
-                            <ha-checkbox id="enable_ghostclick"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_triangle}" label="${this.language.titles.enable_triangle}">
-                            <ha-checkbox id="enable_triangle"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_tooltip}" label="${this.language.titles.enable_tooltip}">
-                            <ha-checkbox id="enable_tooltip"></ha-checkbox>
-                        </ha-formfield>
+  <button type="button" class="collapsible ">${this.language.buttons.rooms}</button>
+  <div class="content"><div><div class="roomEditor"></div></div></div>
+  <button type="button" class="collapsible active">${this.language.buttons.main_settings}</button>
+  <div class="content" style="max-height:fit-content;"><div><table>
+    <tr><td><ha-textfield label="${this.language.air_text}" id="air_text"></ha-textfield></td>
+        <td><ha-textfield label="${this.language.leaf_text}" id="leaf_text"></ha-textfield></td></tr>
+    <tr><td><ha-textfield label="${this.language.rh_text}" id="rh_text"></ha-textfield></td>
+        <td><ha-textfield label="${this.language.kpa_text}" id="kpa_text"></ha-textfield></td></tr>
+    <tr><td><ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_temperature}" id="min_temperature"></ha-textfield></td>
+        <td><ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.max_temperature}" id="max_temperature"></ha-textfield></td></tr>
+    <tr><td><ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_humidity}" id="min_humidity"></ha-textfield></td>
+        <td><ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.max_humidity}" id="max_humidity"></ha-textfield></td></tr>
+    <tr><td><ha-textfield type="text" label="${this.language.leaf_temperature_offset}" id="leaf_temperature_offset"></ha-textfield></td>
+        <td><ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.ghostmap_hours}" id="ghostmap_hours"></ha-textfield></td></tr>
+    <tr><td><ha-textfield pattern="[0-9]+([.][0-9]+)?" min="1" max="10" type="number" title="${this.language.antialiasing}" label="${this.language.antialiasing.substring(0, 20)}..." id="antialiasing"></ha-textfield></td>
+        <td><ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_height}" id="min_height"></ha-textfield></td></tr>
+  </table></div></div>
+  <button type="button" class="collapsible">${this.language.buttons.features}</button>
+  <div class="content"><div><table>
+    <tr><td><ha-formfield data-helptext="${this.language.description.is_bar_view}" label="${this.language.titles.is_bar_view}"><ha-checkbox id="is_bar_view"></ha-checkbox></ha-formfield></td>
+        <td><ha-formfield data-helptext="${this.language.description.enable_axes}" label="${this.language.titles.enable_axes}"><ha-checkbox id="enable_axes"></ha-checkbox></ha-formfield></td></tr>
+    <tr><td><ha-formfield data-helptext="${this.language.description.enable_ghostmap}" label="${this.language.titles.enable_ghostmap}"><ha-checkbox id="enable_ghostmap"></ha-checkbox></ha-formfield></td>
+        <td><ha-formfield data-helptext="${this.language.description.enable_ghostclick}" label="${this.language.titles.enable_ghostclick}"><ha-checkbox id="enable_ghostclick"></ha-checkbox></ha-formfield></td></tr>
+    <tr><td><ha-formfield data-helptext="${this.language.description.enable_triangle}" label="${this.language.titles.enable_triangle}"><ha-checkbox id="enable_triangle"></ha-checkbox></ha-formfield></td>
+        <td><ha-formfield data-helptext="${this.language.description.enable_tooltip}" label="${this.language.titles.enable_tooltip}"><ha-checkbox id="enable_tooltip"></ha-checkbox></ha-formfield></td></tr>
+    <tr><td><ha-formfield data-helptext="${this.language.description.enable_crosshair}" label="${this.language.titles.enable_crosshair}"><ha-checkbox id="enable_crosshair"></ha-checkbox></ha-formfield></td>
+        <td><ha-formfield data-helptext="${this.language.description.enable_zoom}" label="${this.language.titles.enable_zoom}"><ha-checkbox id="enable_zoom"></ha-checkbox></ha-formfield></td></tr>
+    <tr><td><ha-formfield data-helptext="${this.language.description.enable_legend}" label="${this.language.titles.enable_legend}"><ha-checkbox id="enable_legend"></ha-checkbox></ha-formfield></td>
+        <td><ha-formfield data-helptext="${this.language.description.enable_show_always_informations}"><ha-checkbox id="enable_show_always_informations"></ha-checkbox><label>${this.language.titles.enable_show_always_informations}</label></ha-formfield></td></tr>
+  </table></div></div>
+  <button type="button" class="collapsible">${this.language.buttons.phases}</button>
+  <div class="content"><div><div id="slider-container" class="slider-container"><div id="slider-labels" class="slider-labels"></div></div><div class="colorEditor"></div></div></div>
+  <button type="button" class="collapsible">${this.language.buttons.vpd_calibration}</button>
+  <div class="content"><div class="formulaEditor"></div></div>
+</div>
+<div id="global-tooltip"></div>`;
 
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_crosshair}" label="${this.language.titles.enable_crosshair}">
-                            <ha-checkbox id="enable_crosshair"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_zoom}" label="${this.language.titles.enable_zoom}">
-                            <ha-checkbox id="enable_zoom"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                </tr>
-                <tr>
-
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_legend}" label="${this.language.titles.enable_legend}">
-                            <ha-checkbox id="enable_legend"></ha-checkbox>
-                        </ha-formfield>
-                    </td>
-                    <td>
-                        <ha-formfield title="${this.language.description.enable_show_always_informations}">                       
-                            <ha-checkbox id="enable_show_always_informations"></ha-checkbox>
-                            <label>
-                                ${this.language.titles.enable_show_always_informations}
-                            </label>
-                        </ha-formfield>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    </div>
-    <button type="button" class="collapsible">${this.language.buttons.phases}</button>
-    <div class="content">
-        <div>
-            <div id="slider-container" class="slider-container">
-                <div id="slider-labels" class="slider-labels"></div>
-            </div>
-            <div class="colorEditor"></div>
-        </div>
-    </div>
-    <button type="button" class="collapsible">${this.language.buttons.vpd_calibration}</button>
-    <div class="content">
-        <div class="formulaEditor"></div>
-    </div>
-</div>`;
-        const debouncedHandleInputChange = this.debounce(this.handleValueChange, 500);
-
-        this.shadowRoot.querySelectorAll('ha-switch, ha-textfield, input').forEach(input => {
-            let target = input;
-
-            input.addEventListener('input', () => {
-                debouncedHandleInputChange(target);
-            });
-        });
-        this.shadowRoot.querySelectorAll('ha-checkbox').forEach(input => {
-
-            input.addEventListener('change', this.handleValueChange);
-        })
-        this.shadowRoot.querySelectorAll('.collapsible').forEach(collapsible => {
-            collapsible.onclick = () => {
-                collapsible.classList.toggle("active");
-                let content = collapsible.nextElementSibling;
-                content.style.maxHeight = content.style.maxHeight ? null : `fit-content`;
-
-            };
-        });
-
+        const debounced = this.debounce(this.handleValueChange, 500);
+        this.shadowRoot.querySelectorAll('ha-switch, ha-textfield, input').forEach(input => input.addEventListener('input', () => debounced(input)));
+        this.shadowRoot.querySelectorAll('ha-checkbox').forEach(cb => cb.addEventListener('change', this.handleValueChange));
+        this.shadowRoot.querySelectorAll('.collapsible').forEach(col => col.addEventListener('click', () => {
+            col.classList.toggle('active');
+            const c = col.nextElementSibling;
+            c.style.maxHeight = c.style.maxHeight ? null : 'fit-content';
+        }));
     }
 
     initValues() {
-
         const configValues = [
             {id: 'air_text', prop: '_air_text', type: 'value'},
             {id: 'leaf_text', prop: '_leaf_text', type: 'value'},
@@ -509,307 +323,265 @@ export class HaVpdChartEditor extends HTMLElement {
             {id: 'antialiasing', prop: '_antialiasing', type: 'value'},
             {id: 'unit_temperature', prop: '_unit_temperature', type: 'value'}
         ];
-
         configValues.forEach(({id, prop, type}) => {
-            const element = this.shadowRoot.querySelector(`#${id}`);
-            if (element) {
-                if (Object.isExtensible(element)) {
-                    if (type === "checked") {
-                        element[type] = this[prop] ? 'checked' : '';
-                    } else {
-                        element[type] = this[prop];
-                    }
-                } else {
-                    console.warn('Cannot define property on a non-extensible object');
-                }
+            const el = this.shadowRoot.querySelector(`#${id}`);
+            if (!el) return;
+            if (type === 'checked') {
+                el.checked = !!this[prop];
+            } else {
+                el.value = this[prop];
             }
         });
-
-        // Use requestAnimationFrame to update the multiRange
-        requestAnimationFrame(() => {
-            this.updateMultiRange();
-        });
-
+        requestAnimationFrame(() => this.updateMultiRange());
     }
 
     updateMultiRange() {
         const vpdPhases = this.config.vpd_phases;
-        const sliderContainer = this.shadowRoot.querySelector('#slider-container');
-
-        let rangesArray = this.generateRangesArray(vpdPhases);
-
-        let settings = {
+        const slider = this.shadowRoot.querySelector('#slider-container');
+        const ranges = this.generateRangesArray(vpdPhases);
+        this.multiRange = new MultiRange(slider, {
             step: 0,
-            min: this.toFixedNumber(vpdPhases[0].lower),
+            min: this.toFixedNumber(vpdPhases[0].lower || 0),
             max: this.toFixedNumber(vpdPhases[vpdPhases.length - 1].lower + 0.6),
-            ranges: rangesArray,
-        };
-
-        this.multiRange = new MultiRange(sliderContainer, settings);
-
-        this.multiRange.on("changed", (event) => {
-            if (event.detail.idx === undefined || event.detail.value === undefined) return;
-            let configCopy = this.copyConfig();
+            ranges,
+        });
+        this.multiRange.on('changed', event => {
+            if (event.detail.idx == null || event.detail.value == null) return;
+            const cfg = this.copyConfig();
             const idx = event.detail.idx;
-            let value = this.toFixedNumber(event.detail.value);
-
-            if (configCopy.vpd_phases[idx + 1] !== undefined) {
-                configCopy.vpd_phases[idx + 1] = {
-                    ...configCopy.vpd_phases[idx + 1],
-                    lower: this.toFixedNumber(value),
-                };
-            }
-
-            if (configCopy.vpd_phases[idx] !== undefined) {
-                configCopy.vpd_phases[idx] = {
-                    ...configCopy.vpd_phases[idx],
-                    upper: this.toFixedNumber(value),
-                };
-            }
-            this.config = configCopy;
-            this.fireEvent(this, 'config-changed', {config: this.config});
-
+            const val = this.toFixedNumber(event.detail.value);
+            if (cfg.vpd_phases[idx]) cfg.vpd_phases[idx].upper = val;
+            if (cfg.vpd_phases[idx + 1]) cfg.vpd_phases[idx + 1].lower = val;
+            this.config = cfg;
+            this.fireEvent(this, 'config-changed', {config: cfg});
         });
     }
 
     initRooms() {
-        const roomEditor = this.shadowRoot.querySelector('.roomEditor');
-        roomEditor.innerHTML = '';
-        roomEditor.style.display = 'grid';
-        roomEditor.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        roomEditor.style.gap = '10px';
-
-
-        const updateSensors = (index, property, target) => {
-            let configCopy = this.copyConfig();
-            configCopy.rooms[index][property] = this.checkValue(target);
-            this.config = configCopy;
-            this.fireEvent(this, 'config-changed', {config: this.config});
+        const editor = this.shadowRoot.querySelector('.roomEditor');
+        editor.innerHTML = '';
+        editor.style.display = 'grid';
+        editor.style.gridTemplateColumns = 'repeat(2,1fr)';
+        editor.style.gap = '10px';
+        const update = (i, prop, tgt) => {
+            const cfg = this.copyConfig();
+            cfg.rooms[i][prop] = this.checkValue(tgt);
+            this.config = cfg;
+            this.fireEvent(this, 'config-changed', {config: cfg});
         };
-
-        if (this.config.rooms.length !== 0) {
-            this.config.rooms.forEach((room, index) => {
-                const container = document.createElement('div');
-                container.style = "border: 1px solid rgba(127,127,127,0.3); padding: 5px; border-radius: 15px;";
-
-                const fields = [this.language.name, this.language.temperature_sensor + '*', this.language.leaf_temperature_sensor, this.language.humidity_sensor + '*'];
-                const properties = ['name', 'temperature', 'leaf_temperature', 'humidity'];
-
-                fields.forEach((field, i) => {
-                    let element;
-                    switch (properties[i]) {
-                        case 'temperature':
-                        case 'leaf_temperature':
-                            element = this.createComboBox(field, index, room[properties[i]], properties[i], 'temperature');
-                            break;
-                        case 'humidity':
-                            element = this.createComboBox(field, index, room[properties[i]], properties[i], 'humidity');
-                            break;
-                        default:
-                            element = this.createTextField(field, index, room[properties[i]]);
-                            break;
-                    }
-                    element.addEventListener('value-changed', (ev) => updateSensors(index, properties[i], ev));
-                    const debouncedHandleInputChange = this.debounce(updateSensors, 500);
-                    element.addEventListener('input', function (event) {
-                        debouncedHandleInputChange(index, properties[i], event.target);
-                    });
-                    container.appendChild(element);
-                });
-                const removeButton = document.createElement('button');
-                removeButton.innerHTML = 'X';
-                removeButton.className = "removeButton";
-                removeButton.addEventListener('click', () => {
-                    if (this.config.rooms.length === 1) return;
-                    let copyConfig = this.copyConfig();
-                    copyConfig.rooms.splice(index, 1);
-                    this.config = copyConfig;
-                    this.fireEvent(this, 'config-changed', {config: this.config});
-                    this.initRooms();
-                });
-                container.appendChild(removeButton);
-                roomEditor.appendChild(container);
+        this.config.rooms.forEach((room, i) => {
+            const div = document.createElement('div');
+            div.style = 'border:1px solid rgba(127,127,127,0.3);padding:5px;border-radius:15px;';
+            const fields = [this.language.name, this.language.temperature_sensor + '*', this.language.leaf_temperature_sensor, this.language.humidity_sensor + '*'];
+            const props = ['name', 'temperature', 'leaf_temperature', 'humidity'];
+            fields.forEach((label, j) => {
+                let el;
+                if (props[j] === 'name') el = this.createTextField(label, i, room.name);
+                else el = this.createComboBox(label, i, room[props[j]], props[j], props[j].includes('humidity') ? 'humidity' : 'temperature');
+                el.addEventListener('value-changed', ev => update(i, props[j], ev));
+                const deb = this.debounce((idx, p, tgt) => update(idx, p, tgt), 500);
+                el.addEventListener('input', ev => deb(i, props[j], ev.target));
+                div.appendChild(el);
             });
-        }
-        const addButton = document.createElement('button');
-        addButton.innerHTML = this.language.buttons.addRoom;
-        addButton.className = 'addButton';
-        addButton.addEventListener('click', () => {
-            let configCopy = this.copyConfig();
-            configCopy.rooms[configCopy.rooms.length] = [{name: '', temperature: '', humidity: '', leaf_temperature: null}];
-            this.config = configCopy;
-            this.fireEvent(this, 'config-changed', {config: this.config});
-            this.initRooms();
-            roomEditor.parentElement.parentElement.style.maxHeight = `fit-content`;
+            const btn = document.createElement('button');
+            btn.textContent = 'X';
+            btn.className = 'removeButton';
+            btn.addEventListener('click', () => {
+                if (this.config.rooms.length === 1) return;
+                const cfg = this.copyConfig();
+                cfg.rooms.splice(i, 1);
+                this.config = cfg;
+                this.fireEvent(this, 'config-changed', {config: cfg});
+                this.initRooms();
+            });
+            div.appendChild(btn);
+            editor.appendChild(div);
         });
-        roomEditor.appendChild(addButton);
+        const add = document.createElement('button');
+        add.textContent = this.language.buttons.addRoom;
+        add.className = 'addButton';
+        add.addEventListener('click', () => {
+            const cfg = this.copyConfig();
+            cfg.rooms.push({name: '', temperature: '', leaf_temperature: '', humidity: ''});
+            this.config = cfg;
+            this.fireEvent(this, 'config-changed', {config: cfg});
+            this.initRooms();
+            editor.parentElement.parentElement.style.maxHeight = 'fit-content';
+        });
+        editor.appendChild(add);
     }
 
     initColorEditor() {
-        let colorEditor = this.shadowRoot.querySelector('.colorEditor');
-        colorEditor.innerHTML = '';
-        colorEditor.style.display = 'grid';
-        colorEditor.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        colorEditor.style.gap = '10px';
-        this._vpd_phases.forEach((phase, index) => {
-            const container = document.createElement('div');
-            const input = document.createElement('ha-textfield');
-            input.style = 'width:100%';
-            input.label = 'Phase ' + (index + 1);
-            input.setAttribute('data-index', index);
-            input.value = phase.className;
-            container.appendChild(input);
-
-            const colorPicker = document.createElement('input');
-            colorPicker.type = 'color';
-            colorPicker.className = 'colorPicker';
-            colorPicker.value = phase.color;
-            const removeButton = document.createElement('button');
-            removeButton.innerHTML = 'X';
-            removeButton.className = "removeButton";
-            removeButton.addEventListener('click', () => {
-                if (this._vpd_phases.length === 1) {
-                    return;
-                }
-                let copyConfig = this.copyConfig();
-                copyConfig.vpd_phases.splice(index, 1);
-                this.config = copyConfig;
-                this.fireEvent(this, 'config-changed', {config: this.config});
-
-                let rangesArray = this.generateRangesArray(copyConfig.vpd_phases);
-                this.multiRange.update(rangesArray);
-                container.remove();
-                if (index === this._vpd_phases.length) {
-                    delete copyConfig.vpd_phases[index - 1].upper;
-                    this.config = copyConfig;
-                    this.fireEvent(this, 'config-changed', {config: this.config});
-                }
+        const editor = this.shadowRoot.querySelector('.colorEditor');
+        editor.innerHTML = '';
+        editor.style.display = 'grid';
+        editor.style.gridTemplateColumns = 'repeat(2,1fr)';
+        editor.style.gap = '10px';
+        this._vpd_phases.forEach((phase, i) => {
+            const div = document.createElement('div');
+            const tf = document.createElement('ha-textfield');
+            tf.style = 'width:100%';
+            tf.label = 'Phase ' + (i + 1);
+            tf.dataset.index = i;
+            tf.value = phase.className;
+            tf.addEventListener('input', this.handleVPDPhaseChange);
+            const cp = document.createElement('input');
+            cp.type = 'color';
+            cp.value = phase.color;
+            cp.addEventListener('change', ev => {
+                const cfg = this.copyConfig();
+                cfg.vpd_phases[i].color = ev.target.value;
+                this.multiRange.update(this.generateRangesArray(cfg.vpd_phases));
+                this.config = cfg;
+                this.fireEvent(this, 'config-changed', {config: cfg});
+            });
+            const rem = document.createElement('button');
+            rem.textContent = 'X';
+            rem.className = 'removeButton';
+            rem.addEventListener('click', () => {
+                if (this._vpd_phases.length === 1) return;
+                const cfg = this.copyConfig();
+                cfg.vpd_phases.splice(i, 1);
+                this.config = cfg;
+                this.fireEvent(this, 'config-changed', {config: cfg});
+                this.multiRange.update(this.generateRangesArray(cfg.vpd_phases));
                 this.initColorEditor();
                 this.resortPhases();
                 this.initAddButton();
             });
-            container.appendChild(removeButton);
-
-
-            colorPicker.addEventListener('change', (ev) => {
-                if (ev.target.value == null) {
-                    return;
-                }
-                let idx = index;
-                let copyConfig = this.copyConfig();
-                copyConfig.vpd_phases[idx] = {
-                    ...this.copyConfig().vpd_phases[idx], color: ev.target.value
-                };
-
-                let vpdPhases = [...copyConfig.vpd_phases];
-                let rangesArray = this.generateRangesArray(vpdPhases);
-                this.multiRange.update(rangesArray);
-                this.config = copyConfig;
-                this.fireEvent(this, 'config-changed', {config: this.config});
-            });
-            input.addEventListener('input', this.handleVPDPhaseChange);
-
-            container.appendChild(colorPicker);
-            colorEditor.appendChild(container);
+            div.append(tf, cp, rem);
+            editor.appendChild(div);
         });
     }
 
     initAddButton() {
-        let colorEditor = this.shadowRoot.querySelector('.colorEditor');
-        let existingButton = colorEditor.querySelector('.addButton');
-        if (existingButton) {
-            colorEditor.removeChild(existingButton);
-        }
-
-        const addButton = document.createElement('button');
-        addButton.innerHTML = this.language.buttons.addPhase;
-        addButton.className = 'addButton';
-        addButton.addEventListener('click', () => {
-            let copyConfig = this.copyConfig();
-            let newVpdPhases = [...copyConfig.vpd_phases];
-            if (newVpdPhases.length === 0) {
-                console.error('No phases exist');
-                return;
-            }
-            const maxVPD = this.toFixedNumber(this.calculateVPD(this.max_temperature - this.leaf_temperature_offset, this.max_temperature, this.min_humidity));
-            let lastPhase = newVpdPhases[newVpdPhases.length - 1];
-            let lowerValue = this.toFixedNumber(lastPhase.lower);
-
-            let randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
-            let randomPhaseName = 'phase-' + (newVpdPhases.length + 1);
-
-
-            let newLowerValue = this.toFixedNumber(lowerValue + ((this.toFixedNumber(this.multiRange.settings.max) - lowerValue) / 2))
-            newVpdPhases[newVpdPhases.length - 1].upper = newLowerValue;
-            newVpdPhases.push({
-                lower: newLowerValue, upper: maxVPD, className: randomPhaseName, color: randomColor
-            });
-
-            let rangesArray = this.generateRangesArray(newVpdPhases);
-
-            this.multiRange.update(rangesArray);
-            copyConfig.vpd_phases = newVpdPhases;
-            this.config = copyConfig;
-            this.fireEvent(this, 'config-changed', {
-                config: this.config
-            });
-
+        const editor = this.shadowRoot.querySelector('.colorEditor');
+        const existing = editor.querySelector('.addButton');
+        if (existing) existing.remove();
+        const add = document.createElement('button');
+        add.textContent = this.language.buttons.addPhase;
+        add.className = 'addButton';
+        add.addEventListener('click', () => {
+            const cfg = this.copyConfig();
+            if (!cfg.vpd_phases.length) return;
+            const last = cfg.vpd_phases[cfg.vpd_phases.length - 1];
+            const lower = parseFloat(last.lower);
+            const max = this.toFixedNumber(this.calculateVPD(this.config.max_temperature - this.config.leaf_temperature_offset, this.config.max_temperature, this.config.min_humidity));
+            const newLower = this.toFixedNumber(lower + ((this.multiRange.settings.max - lower) / 2));
+            last.upper = newLower;
+            cfg.vpd_phases.push({lower: newLower, upper: max, className: 'phase-' + (cfg.vpd_phases.length + 1), color: '#' + Math.floor(Math.random() * 16777215).toString(16)});
+            this.config = cfg;
+            this.multiRange.update(this.generateRangesArray(cfg.vpd_phases));
+            this.fireEvent(this, 'config-changed', {config: cfg});
             this.initColorEditor();
             this.initAddButton();
         });
-        colorEditor.appendChild(addButton);
+        editor.appendChild(add);
     }
 
-    generateRangesArray(newVpdPhases) {
-        let rangesArray = [];
-        for (let i = 0; i < newVpdPhases.length; i++) {
-            let color = null;
-            if (newVpdPhases[i + 1] !== undefined) {
-                color = newVpdPhases[i + 1].color;
-            }
-            rangesArray.push({
-                value: newVpdPhases[i].upper, color: color
-            });
-        }
-        return rangesArray;
+    generateRangesArray(phases) {
+        return phases.map((p, i) => ({value: p.upper, color: phases[i + 1]?.color || null}));
     }
 
     resortPhases() {
-        let copyConfig = this.copyConfig();
-        let newVpdPhases = [...copyConfig.vpd_phases];
-        newVpdPhases.forEach((phase, index) => {
-            if (newVpdPhases[index + 1] !== undefined) {
-                newVpdPhases[index + 1].lower = phase.upper;
-            }
+        const cfg = this.copyConfig();
+        cfg.vpd_phases.forEach((p, i) => {
+            if (cfg.vpd_phases[i + 1]) cfg.vpd_phases[i + 1].lower = p.upper;
         });
-
-        copyConfig.vpd_phases = newVpdPhases;
-        this.config = copyConfig;
-        this.fireEvent(this, 'config-changed', {config: this.config});
+        this.config = cfg;
+        this.fireEvent(this, 'config-changed', {config: cfg});
     }
 
     initFormulaEditor() {
         const container = this.shadowRoot.querySelector('.formulaEditor');
         container.innerHTML = `
-        <div>
-            <p style="margin-bottom: 10px;">Available Variables: Tleaf, Tair, RH</p>
-            <textarea style="width: 100%; height: 100px; margin-top: 10px;"></textarea>
-        </div>
-    `;
-        container.style.display = 'grid';
-
-        const textarea = container.querySelector('textarea');
-        textarea.value = this.config.calculateVPD || this.extractFunctionBody(this.calculateVPD);
-
-        textarea.addEventListener('input', (ev) => {
+      <div>
+        <p style="margin-bottom:10px;">Available Variables: Tleaf, Tair, RH</p>
+        <textarea style="width:100%;height:100px;margin-top:10px;"></textarea>
+      </div>`;
+        const ta = container.querySelector('textarea');
+        ta.value = this.config.calculateVPD || this.extractFunctionBody(this.calculateVPD);
+        ta.addEventListener('input', ev => {
             this.config.calculateVPD = ev.target.value;
             this.fireEvent(this, 'config-changed', {config: this.config});
         });
     }
 
     extractFunctionBody(func) {
-        const funcAsString = func.toString();
-        return funcAsString.slice(funcAsString.indexOf("{") + 1, funcAsString.lastIndexOf("}"));
+        const s = func.toString();
+        return s.slice(s.indexOf('{') + 1, s.lastIndexOf('}'));
+    }
+
+    fireEvent(node, type, detail) {
+        node.dispatchEvent(new CustomEvent(type, {detail, bubbles: true, composed: true}));
+    }
+
+    showGlobalTooltip(event) {
+        const target = event.target.closest('ha-textfield, ha-formfield');
+        if (target) {
+            const title = target.getAttribute('data-helptext');
+            if (title) {
+                const tooltip = this.shadowRoot.getElementById('global-tooltip');
+                tooltip.textContent = title;
+                tooltip.style.display = 'block';
+                tooltip.style.position = 'fixed';
+                tooltip.style.backgroundColor = 'hsla(0, 0%, 20%, 0.9)';
+                tooltip.style.color = 'white';
+                tooltip.style.padding = '5px 10px';
+                tooltip.style.borderRadius = '3px';
+                tooltip.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.3)';
+                tooltip.style.zIndex = '1000';
+                tooltip.style.fontSize = "11px";
+                tooltip.style.maxWidth = '250px';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.textAlign = 'center';
+
+                let top = event.clientY + 15;
+                let left = event.clientX + 10;
+
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.top = '-9999px';
+                tooltip.style.left = '-9999px';
+
+                const tempRect = tooltip.getBoundingClientRect();
+                const tooltipHeight = tempRect.height;
+                const tooltipWidth = tempRect.width;
+
+                if (top + tooltipHeight > window.innerHeight) {
+                    top = event.clientY - tooltipHeight - 10;
+                }
+                if (left + tooltipWidth > window.innerWidth) {
+                    left = event.clientX - tooltipWidth - 10;
+                }
+
+                tooltip.style.top = `${top}px`;
+                tooltip.style.left = `${left}px`;
+                tooltip.style.visibility = 'visible';
+            } else {
+                this.hideTooltipElement();
+            }
+        } else if (!event.relatedTarget || !event.relatedTarget.closest('#global-tooltip')) {
+            this.hideTooltipElement();
+        }
+    }
+
+    hideGlobalTooltip(event) {
+        const relatedTarget = event.relatedTarget;
+        const target = event.target.closest('ha-textfield, ha-formfield');
+
+        if (target && (!relatedTarget || !target.contains(relatedTarget)) && (!relatedTarget || relatedTarget.id !== 'global-tooltip')) {
+            this.hideTooltipElement();
+        } else if (!target) {
+            this.hideTooltipElement();
+        }
+    }
+
+    hideTooltipElement() {
+        const tooltip = this.shadowRoot.getElementById('global-tooltip');
+        if (tooltip) {
+            tooltip.style.display = 'none';
+            tooltip.textContent = '';
+        }
     }
 }
 

@@ -183,18 +183,6 @@ export const bar = {
             vpdState.className = `vpd-state ${this.getPhaseClass(vpd)} tooltip`;
         });
     },
-    getColorForVpd(vpd) {
-        for (const phase of this.vpd_phases) {
-            if (phase.upper === undefined) {
-                if (vpd >= phase.lower) {
-                    return phase.color;
-                }
-            } else if (vpd <= phase.upper && (!phase.lower || vpd >= phase.lower)) {
-                return phase.color;
-            }
-        }
-        return '';
-    },
     async renderMiniHistory() {
 
         const data = [];
