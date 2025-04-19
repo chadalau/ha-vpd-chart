@@ -91,7 +91,15 @@ export const chart = {
         this.buildTooltip();
     },
     handleZoom(event) {
+        // Check if the wheel event originated inside the scrollable ghostmap sidebar
+        if (event.target.closest('#ghostmap')) {
+            // If inside the sidebar, do nothing and allow default scroll behavior
+            return;
+        }
+
+        // If the event is outside the sidebar, prevent default (to prevent page scroll) and handle zoom
         event.preventDefault();
+
         const zoomDirection = event.deltaY > 0 ? -0.1 : 0.1;
         const rect = this.content.getBoundingClientRect();
         const offsetX = (event.clientX - rect.left) / this.zoomLevel;
@@ -276,7 +284,6 @@ export const chart = {
             const temperature = parseFloat(this._hass.states[currentRoom.temperature]?.state);
             if (!isNaN(temperature)) {
                 this.unit_temperature = this._hass.states[currentRoom.temperature].attributes['unit_of_measurement'];
-                console.log(this.unit_temperature);
                 if (currentRoom.leaf_temperature && this._hass.states[currentRoom.leaf_temperature]) {
                     const leafTemperature = parseFloat(this._hass.states[currentRoom.leaf_temperature].state);
                     if (!isNaN(leafTemperature)) {
@@ -706,8 +713,14 @@ export const chart = {
         this.clickedTooltip = !this.clickedTooltip;
         if (!this.clickedTooltip) {
             this.hideRoomDetails(index);
+            if (this.enable_ghostmap) {
+                this.querySelector('#ghostmap').style.display = 'none';
+            }
         } else {
             this.showRoomDetails(index);
+            if (this.enable_ghostmap) {
+                this.querySelector('#ghostmap').style.display = 'block';
+            }
         }
     },
     showRoomDetails(index) {
@@ -715,6 +728,7 @@ export const chart = {
 
         this.querySelectorAll('.room, .table-container, .custom-tooltip').forEach(el => el.style.display = 'none');
         this.querySelectorAll(`.history-circle-${index}`).forEach(circle => circle.style.display = 'block');
+        this.querySelectorAll(`.history-row-${index}`).forEach(row => row.style.display = 'block');
         this.querySelectorAll(`.room_${index}`).forEach(el => el.style.display = 'block');
         this.querySelectorAll(`.room-${index}-table-container`).forEach(el => el.style.display = 'flex');
         this.updateTemperatureUnit(this._hass.states[this.config.rooms[index].temperature].attributes['unit_of_measurement']);
@@ -736,7 +750,6 @@ export const chart = {
                         classes += ' active';
                     }
                     legend.className = classes;
-
                 }
             }
             this.positionTooltip(tooltip, parseFloat(tooltip.style.left));
@@ -764,6 +777,7 @@ export const chart = {
                 this.positionTooltip(tooltip, parseFloat(tooltip.style.left));
             });
             this.querySelectorAll(`.history-circle-${index}`).forEach(circle => circle.style.display = 'none');
+            this.querySelectorAll(`.history-row-${index}`).forEach(row => row.style.display = 'none');
             this.querySelectorAll('.custom-tooltip, .horizontal-line, .vertical-line, .room-pointer').forEach(el => el.style.display = 'block');
         }
     },

@@ -1,6 +1,6 @@
 # HaVpdChart for Home Assistant
 
-![HaVpdChart Image](https://github.com/mentalilll/ha-vpd-chart/blob/main/assets/image.png?raw=true)
+![HaVpdChart Image](https://github.com/mentalilll/ha-vpd-chart/blob/main/assets/startscreen.gif?raw=true)
 
 ![HaVpdChart Image](https://github.com/mentalilll/ha-vpd-chart/blob/main/assets/bar_view.png?raw=true)
 
@@ -12,58 +12,67 @@
 
 ## Prerequisites
 
-- Home Assistant installation
-- Basic knowledge of YAML and Home Assistant configuration
+* A running Home Assistant installation.
+* Basic understanding of Home Assistant configuration (including YAML).
 
-### HACS Installation
+## Installation
 
-If you have [HACS](https://hacs.xyz) installed, easily search for this Repository ("ha-vpd-chart").
-Otherwise you can easily install it
+There are two main ways to install the `HaVpdChart` card: via HACS (recommended) or manually.
 
-```bash
-sudo docker exec -it [dockername] bash
-wget -O - https://get.hacs.xyz | bash -
-```
+### Method 1: HACS Installation (Recommended)
 
-1. **Add Repository**
+If you don't have [HACS (Home Assistant Community Store)](https://hacs.xyz) installed yet, follow their official installation guide first.
 
-   Click `HACS` -> `Three Dot Menu upper right` -> `Custom Repository`
-   -> `Category: Lovelace` | `Repositury Url: https://github.com/mentalilll/ha-vpd-chart`
+1. **Add Custom Repository:**
+    * Open HACS in your Home Assistant instance.
+    * Click on `Frontend`.
+    * Click the three-dot menu in the top-right corner and select `Custom repositories`.
+    * In the dialog:
+        * Enter the Repository URL: `https://github.com/mentalilll/ha-vpd-chart`
+        * Select the Category: `Lovelace`
+        * Click `Add`.
+2. **Install Plugin:**
+    * Close the `Custom repositories` dialog.
+    * Search for `HaVpdChart` in the HACS Frontend section.
+    * Click on the `HaVpdChart` entry.
+    * Click `Download` and follow the prompts to install the card.
+3. **Add to Dashboard:**
+    * Follow the [Usage](#usage) instructions below to add the card to your Lovelace dashboard.
 
-3. **Install Plugin**
+### Method 2: Manual Installation (from GitHub)
 
-   Search for VPD within Integrations and install `ha-vpd-chart`
-
-### From GitHub
-
-1. **Clone the repository**
-
-   Clone the repository to your local machine
-
-
-2. **Incorporate the file into Home Assistant Docker**
-    1. Navigate to the directory that is mapped to `/config` in your Docker setup.
-    2. Create 2 new directory's named `www/community/ha-vpd-chart/` within `/config` folder.
-    3. Copy the contents of the `dist` directory from the repository into the `<config>/www/community/ha-vpd-chart/` directory.
-
-
-3. **Add the resource in Home Assistant**
-
-   Add the resource through the Home Assistant UI under `Configuration` -> `Lovelace Dashboards` -> `Resource`\
-
-   If you don't have the menu than go to `http://<your_homeassistant_instance:8123>/config/lovelace/resources`\
-   and add the following:\
-   \
-   url: `/local/community/ha-vpd-chart/ha-vpd-chart.js`\
-   type: `module`
-
-**Note:** After adding the resource, you may need to restart Home Assistant.
+1. **Download the Release:**
+    * Go to the [Releases page](https://github.com/mentalilll/ha-vpd-chart/releases) of the `ha-vpd-chart` repository.
+    * Download the `ha-vpd-chart.js` file from the latest release assets.
+2. **Upload to Home Assistant:**
+    * Navigate to your Home Assistant configuration directory (often called `config`).
+    * If they don't exist, create the directories `www/community/ha-vpd-chart/`. The full path would be `<config>/www/community/ha-vpd-chart/`.
+    * Copy the downloaded `ha-vpd-chart.js` file into this `ha-vpd-chart` directory.
+3. **Add Resource Reference:**
+    * In the Home Assistant UI, navigate to `Configuration` -> `Lovelace Dashboards`.
+    * Click the `Resources` tab (or the three-dot menu and then `Resources` if you only have one dashboard).
+    * *Alternatively*, if you don't see the UI option, navigate directly to `http://<your_homeassistant_ip>:8123/config/lovelace/resources`.
+    * Click `Add Resource`.
+    * Enter the following details:
+        * **URL:** `/local/community/ha-vpd-chart/ha-vpd-chart.js` (Note: `/local` maps to the `www` directory).
+        * **Resource Type:** `JavaScript Module`.
+    * Click `Create`.
+4. **Restart (Optional but Recommended):**
+    * Restart Home Assistant to ensure the resource is loaded correctly. A browser cache refresh (Ctrl+F5 or Cmd+Shift+R) might also be needed.
+5. **Add to Dashboard:**
+    * Follow the [Usage](#usage) instructions below.
 
 ## Usage
 
-Just use the Configuration Gui to configure the card.
+You can configure the `HaVpdChart` card using the visual UI editor or by using YAML.
 
-A YAML example is only needed if you realy want to use:
+1. Navigate to the Lovelace dashboard where you want to add the card.
+2. Enter `Edit Dashboard` mode.
+3. Click `Add Card`.
+4. Search for `Custom: VPD Chart` and select it.
+5. Configure the card options through the visual editor.
+
+Alternatively, you can use the YAML configuration:
 
 Easy start as Chart View:
 
