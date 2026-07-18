@@ -334,50 +334,50 @@ export class HaVpdChartEditor extends HTMLElement {
             <table>
                 <tr>
                     <td>
-                        <ha-textfield label="${this.language.air_text}" id="air_text"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.air_text}<input type="text" id="air_text"></label>
                     </td>         
                    <td>
-                        <ha-textfield label="${this.language.leaf_text}" id="leaf_text"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.leaf_text}<input type="text" id="leaf_text"></label>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <ha-textfield label="${this.language.rh_text}" id="rh_text"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.rh_text}<input type="text" id="rh_text"></label>
                     </td>
                     <td>
-                        <ha-textfield label="${this.language.kpa_text}" id="kpa_text"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_temperature}" id="min_temperature"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.max_temperature}" id="max_temperature"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.kpa_text}<input type="text" id="kpa_text"></label>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_humidity}" id="min_humidity"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.min_temperature}<input step="any" type="number" id="min_temperature"></label>
                     </td>
                     <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.max_humidity}" id="max_humidity"></ha-textfield>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <ha-textfield type="text" label="${this.language.leaf_temperature_offset}" id="leaf_temperature_offset"></ha-textfield>
-                    </td>
-                    <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.ghostmap_hours}" id="ghostmap_hours"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.max_temperature}<input step="any" type="number" id="max_temperature"></label>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" min="1" max="10" type="number" title="${this.language.antialiasing}" label="${this.language.antialiasing.substring(0, 20)}..." id="antialiasing"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.min_humidity}<input step="any" type="number" id="min_humidity"></label>
                     </td>
                     <td>
-                        <ha-textfield pattern="[0-9]+([.][0-9]+)?" type="number" label="${this.language.min_height}" id="min_height"></ha-textfield>
+                        <label class="vpd-editor-field">${this.language.max_humidity}<input step="any" type="number" id="max_humidity"></label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label class="vpd-editor-field">${this.language.leaf_temperature_offset}<input type="text" id="leaf_temperature_offset"></label>
+                    </td>
+                    <td>
+                        <label class="vpd-editor-field">${this.language.ghostmap_hours}<input min="1" step="1" type="number" id="ghostmap_hours"></label>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label class="vpd-editor-field" title="${this.language.antialiasing}">${this.language.antialiasing.substring(0, 20)}...<input min="1" max="10" step="1" type="number" id="antialiasing"></label>
+                    </td>
+                    <td>
+                        <label class="vpd-editor-field">${this.language.min_height}<input min="0" step="1" type="number" id="min_height"></label>
                     </td>
                 </tr>
             </table>
