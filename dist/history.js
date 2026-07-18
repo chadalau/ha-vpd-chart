@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.0.0', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.1.0', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -16,6 +16,7 @@ export const history = {
                 </div>
                 <div class="history-chart-wrap">
                     <svg class="history-chart" viewBox="0 0 720 350" role="img" aria-label="VPD history"></svg>
+                    <div class="history-tooltip" role="status"></div>
                     <div class="history-empty">No history available</div>
                 </div>
             </ha-card>`;
@@ -147,6 +148,9 @@ export const history = {
             return {
                 time,
                 vpd: Number(this.calculateVPD(leafTemperature, temperature, humidity, unit)),
+                temperature,
+                humidity,
+                unit,
             };
         }).filter(item => Number.isFinite(item.time) && Number.isFinite(item.vpd)).sort((a, b) => a.time - b.time);
     },
@@ -166,11 +170,15 @@ export const history = {
             if (lastPoint && now - lastPoint.time < 60000) {
                 lastPoint.time = now;
                 lastPoint.vpd = reading.vpd;
+                lastPoint.temperature = reading.temperature;
+                lastPoint.humidity = reading.humidity;
+                lastPoint.unit = reading.unit;
             } else {
-                points.push({time: now, vpd: reading.vpd});
+                points.push({time: now, vpd: reading.vpd, temperature: reading.temperature, humidity: reading.humidity, unit: reading.unit});
             }
         }
         svg.replaceChildren();
+        this.hideHistoryTooltip();
         empty.style.display = points.length ? 'none' : 'block';
         if (!points.length) return;
 
@@ -235,11 +243,34 @@ export const history = {
 
         points.forEach((point, index) => {
             if (index !== points.length - 1 && points.length > 30 && index % 2) return;
-            const circle = createSvg('circle', {cx: x(point.time), cy: y(point.vpd), r: index === points.length - 1 ? 5 : 3, class: index === points.length - 1 ? 'current-point' : 'history-point'});
+            const pointX = x(point.time);
+            const pointY = y(point.vpd);
+            const circle = createSvg('circle', {cx: pointX, cy: pointY, r: index === points.length - 1 ? 5 : 3, class: index === points.length - 1 ? 'current-point' : 'history-point'});
             const title = createSvg('title');
             title.textContent = `${timeFormat.format(new Date(point.time))}: ${point.vpd.toFixed(2)} kPa`;
             circle.appendChild(title);
             svg.appendChild(circle);
+            if (this.enable_tooltip) {
+                const hitArea = createSvg('circle', {
+                    cx: pointX,
+                    cy: pointY,
+                    r: 12,
+                    class: 'history-point-hit',
+                    tabindex: '0',
+                    role: 'button',
+                    'aria-label': title.textContent,
+                });
+                const show = event => {
+                    event.stopPropagation();
+                    this.showHistoryTooltip(point, pointX, pointY, timeFormat);
+                };
+                hitArea.addEventListener('pointerenter', show);
+                hitArea.addEventListener('focus', show);
+                hitArea.addEventListener('click', show);
+                hitArea.addEventListener('pointerleave', () => this.hideHistoryTooltip());
+                hitArea.addEventListener('blur', () => this.hideHistoryTooltip());
+                svg.appendChild(hitArea);
+            }
         });
 
         const current = points.at(-1);
@@ -249,5 +280,36 @@ export const history = {
         const unitLabel = createSvg('text', {x: 17, y: margin.top + plotHeight / 2, transform: `rotate(-90 17 ${margin.top + plotHeight / 2})`, 'text-anchor': 'middle', class: 'axis-label'});
         unitLabel.textContent = 'VPD (kPa)';
         svg.appendChild(unitLabel);
+    },
+
+    showHistoryTooltip(point, pointX, pointY, timeFormat) {
+        const tooltip = this.querySelector('.history-tooltip');
+        const svg = this.querySelector('.history-chart');
+        if (!tooltip || !svg) return;
+        const phase = this.formatHistoryPhase(this.getPhaseClass(point.vpd));
+        const details = [`${timeFormat.format(new Date(point.time))} · ${point.vpd.toFixed(2)} ${this.kpa_text || 'kPa'}`];
+        if (phase) details.push(phase);
+        if (Number.isFinite(point.temperature) && Number.isFinite(point.humidity)) {
+            details.push(`${point.temperature.toFixed(1)} ${point.unit || '°C'} · ${point.humidity.toFixed(0)}% ${this.rh_text || 'RH'}`);
+        }
+        tooltip.replaceChildren();
+        details.forEach((detail, index) => {
+            const line = document.createElement(index === 0 ? 'strong' : 'span');
+            line.textContent = detail;
+            tooltip.appendChild(line);
+        });
+        const left = svg.offsetLeft + pointX / 720 * svg.clientWidth;
+        const top = svg.offsetTop + pointY / 350 * svg.clientHeight;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.classList.add('visible');
+        tooltip.classList.toggle('below', top < tooltip.offsetHeight + 12);
+        const halfWidth = tooltip.offsetWidth / 2;
+        const clampedLeft = Math.min(Math.max(left, halfWidth + 6), svg.clientWidth - halfWidth - 6);
+        tooltip.style.left = `${clampedLeft}px`;
+    },
+
+    hideHistoryTooltip() {
+        this.querySelector('.history-tooltip')?.classList.remove('visible', 'below');
     },
 };

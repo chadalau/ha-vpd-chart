@@ -61,7 +61,7 @@ wget -O - https://get.hacs.xyz | bash -
 
 ### Compatibility
 
-Version 3.0.0 supports current Home Assistant frontend releases. Resources are
+Version 3.1.0 supports current Home Assistant frontend releases. Resources are
 resolved relative to `ha-vpd-chart.js`, so the card works when installed by HACS,
 manually under `/local`, or from a custom resource path.  The card also ignores a
 room while one of its configured sensors is unavailable instead of failing the
@@ -106,6 +106,8 @@ Available visualization modes:
 - `history` (default): VPD trend over time with phase bands and room selection.
 - `chart`: the original temperature × humidity VPD map.
 - `bar`: compact status bars. The legacy `is_bar_view: true` option remains supported.
+
+In history mode, `enable_tooltip: true` enables hourly hover, keyboard-focus, and touch details for each point.
 
 To use the `HaVpdChart` in your Lovelace dashboard, add the following configuration to your dashboard. Adjust the rooms and other options according to your setup:
 

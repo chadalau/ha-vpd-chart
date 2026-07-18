@@ -100,6 +100,19 @@
     opacity: .72;
 }
 
+.history-point-hit {
+    fill: transparent;
+    stroke: transparent;
+    pointer-events: all;
+    cursor: crosshair;
+}
+
+.history-point-hit:focus {
+    stroke: var(--primary-color);
+    stroke-width: 2;
+    outline: none;
+}
+
 .current-point {
     fill: var(--primary-color);
     stroke: var(--card-background-color);
@@ -117,6 +130,39 @@
     position: absolute;
     inset: 40% 0 auto;
     text-align: center;
+    color: var(--secondary-text-color);
+}
+
+.history-tooltip {
+    position: absolute;
+    z-index: 3;
+    display: none;
+    transform: translate(-50%, calc(-100% - 10px));
+    min-width: max-content;
+    max-width: min(240px, calc(100% - 12px));
+    padding: 8px 10px;
+    border: 1px solid var(--divider-color);
+    border-radius: 8px;
+    background: var(--card-background-color);
+    color: var(--primary-text-color);
+    box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0, 0, 0, .28));
+    pointer-events: none;
+}
+
+.history-tooltip.visible {
+    display: grid;
+    gap: 3px;
+}
+
+.history-tooltip.below {
+    transform: translate(-50%, 10px);
+}
+
+.history-tooltip strong {
+    font-weight: 500;
+}
+
+.history-tooltip span {
     color: var(--secondary-text-color);
 }
 
