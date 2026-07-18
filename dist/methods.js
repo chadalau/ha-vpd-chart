@@ -153,12 +153,15 @@ export const methods = {
         return JSON.parse(JSON.stringify(this.config));
     },
     createTextField(label, index, value) {
-        const textField = document.createElement('ha-textfield');
-        textField.style = 'width:100%';
-        textField.label = label;
-        textField.setAttribute('data-index', index);
-        textField.value = value || '';
-        return textField;
+        const field = document.createElement('label');
+        field.className = 'vpd-editor-field';
+        field.textContent = label;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = value || '';
+        input.setAttribute('data-index', index);
+        field.appendChild(input);
+        return field;
     },
     getSensorsByType(hass, type) {
         const sensors = Object.keys(hass.states).filter(entity_id => {
@@ -188,27 +191,22 @@ export const methods = {
         return haListItem;
     },
     createComboBox(label, index, value, property, type) {
-        const temperatureSensors = this.getSensorsByType(this._hass, type);
+        const field = this.createTextField(label, index, value);
+        const input = field.querySelector('input');
+        input.placeholder = 'Selecione ou informe a entidade';
+        const listId = `vpd-${property}-${index}-entities`;
+        input.setAttribute('list', listId);
 
-        const haComboBox = document.createElement('ha-combo-box');
-        haComboBox.hass = this._hass;
-        haComboBox.label = label;
-        haComboBox.value = value;
-        haComboBox.required = false;
-        haComboBox.placeholder = 'Select Sensor';
-        haComboBox.disabled = false;
-        haComboBox.helper = '';
-        haComboBox.renderer = (root, obj) => {
-            return this.createHaListItem(obj.item, this._hass);
-        }
-        haComboBox.items = temperatureSensors;
-        haComboBox.itemValuePath = 'entry_id';
-        haComboBox.itemIdPath = 'entry_id';
-        haComboBox.itemLabelPath = 'title';
-        haComboBox.itemSecondaryPath = 'entry_id';
-        haComboBox.allowCustomValue = true;
-
-        return haComboBox;
+        const list = document.createElement('datalist');
+        list.id = listId;
+        this.getSensorsByType(this._hass, type).forEach(sensor => {
+            const option = document.createElement('option');
+            option.value = sensor.entry_id;
+            option.label = sensor.title;
+            list.appendChild(option);
+        });
+        field.appendChild(list);
+        return field;
     },
     createCheckbox(label, index, value, property, title = '') {
         const haFormfield = document.createElement('ha-formfield');

@@ -23,6 +23,9 @@ export class HaVpdChartEditor extends HTMLElement {
         if (config.rooms === undefined) {
             config.rooms = [];
         }
+        // 2.0.x accidentally stored a one-item array when adding a room.  Keep
+        // existing dashboards usable by converting that malformed value.
+        config.rooms = config.rooms.map(room => Array.isArray(room) ? (room[0] || {}) : room);
         if (config.sensors !== undefined) {
             config.rooms = config.sensors;
         }
@@ -644,7 +647,7 @@ export class HaVpdChartEditor extends HTMLElement {
         addButton.className = 'addButton';
         addButton.addEventListener('click', () => {
             let configCopy = this.copyConfig();
-            configCopy.rooms[configCopy.rooms.length] = [{name: '', temperature: '', humidity: '', leaf_temperature: null}];
+            configCopy.rooms.push({name: '', temperature: '', humidity: '', leaf_temperature: null});
             this.config = configCopy;
             this.fireEvent(this, 'config-changed', {config: this.config});
             this.initRooms();
@@ -661,11 +664,9 @@ export class HaVpdChartEditor extends HTMLElement {
         colorEditor.style.gap = '10px';
         this._vpd_phases.forEach((phase, index) => {
             const container = document.createElement('div');
-            const input = document.createElement('ha-textfield');
-            input.style = 'width:100%';
-            input.label = 'Phase ' + (index + 1);
-            input.setAttribute('data-index', index);
-            input.value = phase.className;
+            const input = this.createTextField('Phase ' + (index + 1), index, phase.className);
+            const phaseInput = input.querySelector('input');
+            phaseInput.setAttribute('data-index', index);
             container.appendChild(input);
 
             const colorPicker = document.createElement('input');
@@ -715,7 +716,7 @@ export class HaVpdChartEditor extends HTMLElement {
                 this.config = copyConfig;
                 this.fireEvent(this, 'config-changed', {config: this.config});
             });
-            input.addEventListener('input', this.handleVPDPhaseChange);
+            phaseInput.addEventListener('input', this.handleVPDPhaseChange);
 
             container.appendChild(colorPicker);
             colorEditor.appendChild(container);
