@@ -1,12 +1,12 @@
 // Set version for the card 
-window.vpdChartVersion = "3.2.2";
+window.vpdChartVersion = "3.2.3";
 
-import {methods} from './methods.js?v=3.2.2';
-import {chart} from './chart.js?v=3.2.2';
-import {bar} from './bar.js?v=3.2.2';
-import {history} from './history.js?v=3.2.2';
-import {ghostmap} from './ghostmap.js?v=3.2.2';
-import './ha-vpd-chart-editor.js?v=3.2.2';
+import {methods} from './methods.js?v=3.2.3';
+import {chart} from './chart.js?v=3.2.3';
+import {bar} from './bar.js?v=3.2.3';
+import {history} from './history.js?v=3.2.3';
+import {ghostmap} from './ghostmap.js?v=3.2.3';
+import './ha-vpd-chart-editor.js?v=3.2.3';
 
 const CONFIG_KEYS = [
     'vpd_phases', 'sensors', 'air_text', 'leaf_text', 'rh_text', 'kpa_text', 'min_temperature',

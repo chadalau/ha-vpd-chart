@@ -88,10 +88,6 @@
     fill: var(--primary-text-color);
 }
 
-.trend-area {
-    fill: color-mix(in srgb, var(--primary-color) 14%, transparent);
-}
-
 .trend-line {
     fill: none;
     stroke: var(--primary-color);

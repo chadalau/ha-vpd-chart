@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.2.2', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.2.3', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -255,8 +255,6 @@ export const history = {
         }
 
         const pathData = points.map((point, index) => `${index ? 'L' : 'M'} ${x(point.time).toFixed(1)} ${y(point.vpd).toFixed(1)}`).join(' ');
-        const area = createSvg('path', {d: `${pathData} L ${x(points.at(-1).time)} ${margin.top + plotHeight} L ${x(points[0].time)} ${margin.top + plotHeight} Z`, class: 'trend-area'});
-        svg.appendChild(area);
         svg.appendChild(createSvg('path', {d: pathData, class: 'trend-line'}));
 
         points.forEach((point, index) => {

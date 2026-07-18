@@ -1,6 +1,6 @@
-import {methods} from './methods.js?v=3.2.2';
+import {methods} from './methods.js?v=3.2.3';
 
-import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=3.2.2';
+import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=3.2.3';
 
 export class HaVpdChartEditor extends HTMLElement {
     config = {
@@ -320,7 +320,7 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     render() {
-        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=3.2.2', import.meta.url).href;
+        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=3.2.3', import.meta.url).href;
         this.shadowRoot.innerHTML = `<style>
     @import '${editorCssUrl}'
 </style>
