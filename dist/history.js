@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.2.1', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.2.2', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -203,7 +203,7 @@ export const history = {
         const headerHeight = header?.offsetHeight || 40;
         const topMargin = Math.max(66, headerHeight * width / displayWidth + 18);
         const height = topMargin + 420 + 42;
-        const margin = {left: 58, right: 22, top: topMargin, bottom: 42};
+        const margin = {left: 8, right: 8, top: topMargin, bottom: 42};
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         this._historySvgHeight = height;
         this._historyRenderedWidth = svg.clientWidth;
@@ -235,19 +235,12 @@ export const history = {
                 opacity: '0.16',
             });
             svg.appendChild(rect);
-            const labelY = reachesChartTop ? margin.top + 16 : y(upper) + 16;
-            const label = createSvg('text', {x: margin.left + 8, y: labelY, class: 'phase-label'});
-            label.textContent = this.formatHistoryPhase(phase.className);
-            svg.appendChild(label);
         });
 
         for (let index = 0; index <= 5; index++) {
             const value = maxY * index / 5;
             const lineY = y(value);
             svg.appendChild(createSvg('line', {x1: margin.left, y1: lineY, x2: width - margin.right, y2: lineY, class: 'grid-line'}));
-            const label = createSvg('text', {x: margin.left - 9, y: lineY + 4, 'text-anchor': 'end', class: 'axis-label'});
-            label.textContent = value.toFixed(1);
-            svg.appendChild(label);
         }
 
         const locale = this._hass.locale?.language || this._hass.language || 'en';
@@ -302,9 +295,6 @@ export const history = {
         const currentLabel = createSvg('text', {x: x(current.time) - 9, y: y(current.vpd) - 11, 'text-anchor': 'end', class: 'current-label'});
         currentLabel.textContent = `${current.vpd.toFixed(2)} kPa`;
         svg.appendChild(currentLabel);
-        const unitLabel = createSvg('text', {x: 17, y: margin.top + plotHeight / 2, transform: `rotate(-90 17 ${margin.top + plotHeight / 2})`, 'text-anchor': 'middle', class: 'axis-label'});
-        unitLabel.textContent = 'VPD (kPa)';
-        svg.appendChild(unitLabel);
     },
 
     showHistoryTooltip(point, pointX, pointY, timeFormat) {
