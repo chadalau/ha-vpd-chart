@@ -61,7 +61,7 @@ wget -O - https://get.hacs.xyz | bash -
 
 ### Compatibility
 
-Version 3.3.0 supports current Home Assistant frontend releases. Resources are
+Version 3.3.1 supports current Home Assistant frontend releases. Resources are
 resolved relative to `ha-vpd-chart.js`, so the card works when installed by HACS,
 manually under `/local`, or from a custom resource path.  The card also ignores a
 room while one of its configured sensors is unavailable instead of failing the

@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.3.0', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.3.1', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -25,11 +25,13 @@ export const history = {
         this.renderHistoryRoomButtons();
         this._historyResizeObserver?.disconnect();
         this._historyResizeObserver = new ResizeObserver(() => {
-            if (this._historyData && this.content?.clientWidth !== this._historyRenderedWidth) {
+            const headerHeight = this.querySelector('.history-header')?.offsetHeight;
+            if (this._historyData && (this.content?.clientWidth !== this._historyRenderedWidth || headerHeight !== this._historyRenderedHeaderHeight)) {
                 this.renderHistorySvg(this._historyData);
             }
         });
         this._historyResizeObserver.observe(this.querySelector('.history-chart-wrap'));
+        this._historyResizeObserver.observe(this.querySelector('.history-header'));
     },
 
     async buildHistoryChart() {
@@ -296,12 +298,13 @@ export const history = {
         const header = this.querySelector('.history-header');
         const displayWidth = svg.clientWidth || width;
         const headerHeight = header?.offsetHeight || 40;
-        const topMargin = Math.max(66, headerHeight * width / displayWidth + 18);
+        const topMargin = Math.max(66, headerHeight * width / displayWidth + 30);
         const height = topMargin + 420 + 42;
         const margin = {left: 8, right: 8, top: topMargin, bottom: 42};
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         this._historySvgHeight = height;
         this._historyRenderedWidth = svg.clientWidth;
+        this._historyRenderedHeaderHeight = headerHeight;
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
         const configuredMax = Math.max(...this.vpd_phases.map(phase => phase.upper ?? phase.lower ?? 0), 2);
@@ -322,9 +325,9 @@ export const history = {
             const reachesChartTop = upper >= maxY;
             const bandTop = reachesChartTop ? 0 : y(upper);
             const rect = createSvg('rect', {
-                x: margin.left,
+                x: 0,
                 y: bandTop,
-                width: plotWidth,
+                width,
                 height: y(lower) - bandTop,
                 fill: phase.color || 'currentColor',
                 opacity: '0.16',

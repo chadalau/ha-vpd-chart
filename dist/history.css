@@ -1,14 +1,16 @@
 .vpd-history-view {
-    padding: 16px;
+    box-sizing: border-box;
+    padding: 0;
+    border-radius: var(--ha-card-border-radius, 12px);
     overflow: hidden;
 }
 
 .history-header {
     position: absolute;
     z-index: 2;
-    top: 10px;
-    left: 12px;
-    right: 12px;
+    top: 14px;
+    left: 16px;
+    right: 16px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -69,6 +71,8 @@
 .history-chart-wrap {
     position: relative;
     min-height: 300px;
+    border-radius: inherit;
+    overflow: hidden;
 }
 
 .history-chart {
@@ -175,7 +179,7 @@
 
 @media (max-width: 420px) {
     .vpd-history-view {
-        padding: 12px 8px;
+        padding: 0;
     }
 
     .history-reading {
