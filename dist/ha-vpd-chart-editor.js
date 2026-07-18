@@ -1,6 +1,6 @@
-import {methods} from './methods.js?v=2.2.0';
+import {methods} from './methods.js?v=3.0.0';
 
-import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=2.2.0';
+import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=3.0.0';
 
 export class HaVpdChartEditor extends HTMLElement {
     config = {
@@ -36,6 +36,9 @@ export class HaVpdChartEditor extends HTMLElement {
         }
         if (config.is_bar_view === undefined) {
             config.is_bar_view = false;
+        }
+        if (config.view_mode === undefined) {
+            config.view_mode = config.is_bar_view ? 'bar' : 'history';
         }
         if (config.min_temperature === undefined) {
             config.min_temperature = 5;
@@ -161,6 +164,10 @@ export class HaVpdChartEditor extends HTMLElement {
         return this.config.is_bar_view || false;
     }
 
+    get _view_mode() {
+        return this.config.is_bar_view ? 'bar' : (this.config.view_mode || 'history');
+    }
+
     get _enable_axes() {
         return this.config.enable_axes !== undefined ? this.config.enable_axes : true;
     }
@@ -257,7 +264,12 @@ export class HaVpdChartEditor extends HTMLElement {
         const configValue = target.getAttribute('id');
         let value = this.checkValue(target);
         let configCopy = this.copyConfig();
-        if (configCopy[configValue] !== value) {
+        if (configValue === 'view_mode') {
+            const changed = configCopy.view_mode !== value || configCopy.is_bar_view !== (value === 'bar');
+            configCopy.view_mode = value;
+            configCopy.is_bar_view = value === 'bar';
+            if (changed) this.fireEvent(this, 'config-changed', {config: configCopy});
+        } else if (configCopy[configValue] !== value) {
             configCopy[configValue] = value;
             this.fireEvent(this, 'config-changed', {config: configCopy});
         }
@@ -308,7 +320,7 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     render() {
-        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=2.2.0', import.meta.url).href;
+        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=3.0.0', import.meta.url).href;
         this.shadowRoot.innerHTML = `<style>
     @import '${editorCssUrl}'
 </style>
@@ -380,7 +392,13 @@ export class HaVpdChartEditor extends HTMLElement {
             <table>
                 <tr>
                     <td>
-                        <label class="vpd-editor-checkbox" title="${this.language.description.is_bar_view}"><input type="checkbox" id="is_bar_view">${this.language.titles.is_bar_view}</label>
+                        <label class="vpd-editor-field">Visualization
+                            <select id="view_mode">
+                                <option value="history">History</option>
+                                <option value="chart">Temperature × humidity map</option>
+                                <option value="bar">Bars</option>
+                            </select>
+                        </label>
                     </td>
                     <td>
                         <label class="vpd-editor-checkbox" title="${this.language.description.enable_axes}"><input type="checkbox" id="enable_axes">${this.language.titles.enable_axes}</label>
@@ -439,7 +457,7 @@ export class HaVpdChartEditor extends HTMLElement {
 </div>`;
         const debouncedHandleInputChange = this.debounce(this.handleValueChange, 500);
 
-        this.shadowRoot.querySelectorAll('input:not([type="checkbox"])').forEach(input => {
+        this.shadowRoot.querySelectorAll('input:not([type="checkbox"]), select').forEach(input => {
             let target = input;
 
             input.addEventListener('input', () => {
@@ -473,7 +491,7 @@ export class HaVpdChartEditor extends HTMLElement {
             {id: 'max_humidity', prop: '_max_humidity', type: 'value'},
             {id: 'leaf_temperature_offset', prop: '_leaf_temperature_offset', type: 'value'},
             {id: 'min_height', prop: '_min_height', type: 'value'},
-            {id: 'is_bar_view', prop: '_is_bar_view', type: 'checked'},
+            {id: 'view_mode', prop: '_view_mode', type: 'value'},
             {id: 'enable_axes', prop: '_enable_axes', type: 'checked'},
             {id: 'enable_ghostclick', prop: '_enable_ghostclick', type: 'checked'},
             {id: 'enable_ghostmap', prop: '_enable_ghostmap', type: 'checked'},

@@ -1,11 +1,12 @@
 // Set version for the card 
-window.vpdChartVersion = "2.2.0";
+window.vpdChartVersion = "3.0.0";
 
-import {methods} from './methods.js?v=2.2.0';
-import {chart} from './chart.js?v=2.2.0';
-import {bar} from './bar.js?v=2.2.0';
-import {ghostmap} from './ghostmap.js?v=2.2.0';
-import './ha-vpd-chart-editor.js?v=2.2.0';
+import {methods} from './methods.js?v=3.0.0';
+import {chart} from './chart.js?v=3.0.0';
+import {bar} from './bar.js?v=3.0.0';
+import {history} from './history.js?v=3.0.0';
+import {ghostmap} from './ghostmap.js?v=3.0.0';
+import './ha-vpd-chart-editor.js?v=3.0.0';
 
 const CONFIG_KEYS = [
     'vpd_phases', 'sensors', 'air_text', 'leaf_text', 'rh_text', 'kpa_text', 'min_temperature',
@@ -13,13 +14,18 @@ const CONFIG_KEYS = [
     'is_bar_view', 'enable_axes', 'enable_ghostclick', 'enable_ghostmap', 'enable_triangle',
     'enable_tooltip', 'enable_crosshair', 'ghostmap_hours',
     'unit_temperature', 'enable_zoom', 'enable_legend', 'enable_show_always_informations',
-    'leaf_temperature_offset', 'antialiasing'
+    'leaf_temperature_offset', 'antialiasing', 'view_mode'
 ];
 
 class HaVpdChart extends HTMLElement {
     constructor() {
         super();
         this.initializeDefaults(this);
+    }
+
+    connectedCallback() {
+        this.style.display = 'block';
+        this.style.width = '100%';
     }
 
 
@@ -35,6 +41,7 @@ class HaVpdChart extends HTMLElement {
         this.sensors = [];
         this.rooms = [];
         this.is_bar_view = false;
+        this.view_mode = 'history';
         this.min_temperature = 5;
         this.max_temperature = 35;
         this.min_humidity = 10;
@@ -91,6 +98,7 @@ class HaVpdChart extends HTMLElement {
             calculateVPD: {type: Function},
             ghostmap_hours: {type: Number},
             unit_temperature: {type: String},
+            view_mode: {type: String},
         };
     }
 
@@ -153,7 +161,16 @@ class HaVpdChart extends HTMLElement {
                 break;
 
         }
-        this.is_bar_view ? this.buildBarChart() : this.buildChart();
+        switch (this.getActiveViewMode()) {
+            case 'bar':
+                this.buildBarChart();
+                break;
+            case 'chart':
+                this.buildChart();
+                break;
+            default:
+                this.buildHistoryChart();
+        }
     }
 
     static getConfigElement() {
@@ -167,18 +184,23 @@ class HaVpdChart extends HTMLElement {
     }
 
     getCardSize() {
-        return this.is_bar_view ? Math.max(1, this.config?.rooms?.length || 1) : 6;
+        return this.getActiveViewMode() === 'bar' ? Math.max(1, this.config?.rooms?.length || 1) : 6;
+    }
+
+    getActiveViewMode() {
+        return this.is_bar_view ? 'bar' : (this.view_mode || 'history');
     }
 
     disconnectedCallback() {
         this.cleanupChart?.();
+        this.cleanupHistory?.();
     }
 
     setConfig(config) {
         if (!config || typeof config !== 'object') {
             throw new Error('The card configuration must be an object');
         }
-        const previousBarView = this.is_bar_view;
+        const previousViewMode = this.getActiveViewMode();
         this.config = config;
 
         if (!config.rooms) {
@@ -201,10 +223,14 @@ class HaVpdChart extends HTMLElement {
             throw new Error('rooms must be a list');
         }
 
-        if (this.content && previousBarView !== this.is_bar_view) {
+        if (this.content && previousViewMode !== this.getActiveViewMode()) {
             this.cleanupChart?.();
+            this.cleanupHistory?.();
             this.replaceChildren();
             this.content = undefined;
+            this.roomdom = undefined;
+            this.ghostmapDom = undefined;
+            this.mouseTooltip = undefined;
         }
 
         if (this.config.calculateVPD) {
@@ -220,6 +246,7 @@ class HaVpdChart extends HTMLElement {
 Object.assign(HaVpdChart.prototype, methods);
 Object.assign(HaVpdChart.prototype, chart);
 Object.assign(HaVpdChart.prototype, bar);
+Object.assign(HaVpdChart.prototype, history);
 Object.assign(HaVpdChart.prototype, ghostmap);
 if (!customElements.get('ha-vpd-chart')) {
     customElements.define('ha-vpd-chart', HaVpdChart);

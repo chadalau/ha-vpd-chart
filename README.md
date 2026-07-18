@@ -61,7 +61,7 @@ wget -O - https://get.hacs.xyz | bash -
 
 ### Compatibility
 
-Version 2.2.0 supports current Home Assistant frontend releases. Resources are
+Version 3.0.0 supports current Home Assistant frontend releases. Resources are
 resolved relative to `ha-vpd-chart.js`, so the card works when installed by HACS,
 manually under `/local`, or from a custom resource path.  The card also ignores a
 room while one of its configured sensors is unavailable instead of failing the
@@ -73,10 +73,11 @@ Just use the Configuration Gui to configure the card.
 
 A YAML example is only needed if you realy want to use:
 
-Easy start as Chart View:
+Easy start as History View:
 
 ```yaml
 type: custom:ha-vpd-chart
+view_mode: history
 rooms:
   - temperature: sensor.temperature_2
     humidity: sensor.humidity_2
@@ -100,10 +101,17 @@ rooms:
     name: Tent 2
 ```
 
+Available visualization modes:
+
+- `history` (default): VPD trend over time with phase bands and room selection.
+- `chart`: the original temperature × humidity VPD map.
+- `bar`: compact status bars. The legacy `is_bar_view: true` option remains supported.
+
 To use the `HaVpdChart` in your Lovelace dashboard, add the following configuration to your dashboard. Adjust the rooms and other options according to your setup:
 
 ```yaml
 type: custom:ha-vpd-chart
+view_mode: history # history, chart, or bar
 air_text: Temp. #optional "" for Empty
 rh_text: r.H. #optional "" for Empty
 min_temperature: 5 #optional
@@ -159,6 +167,7 @@ calculateVPD: |2-
 | Name                            | Type           | Required     | Default                                 | Description                                                                                       |
 |---------------------------------|----------------|--------------|-----------------------------------------|---------------------------------------------------------------------------------------------------|
 | type                            | string         | **required** |                                         | Must be `custom:ha-vpd-chart`.                                                                    |
+| view_mode                       | string         | optional     | `history`                               | Visualization mode: `history`, `chart`, or `bar`.                                                 |
 | air_text                        | string         | optional     | `Air`                                   | The text used for temperature readings. Default is "Air".                                         |
 | rh_text                         | string         | optional     | `RH`                                    | The text used for humidity readings. Default is "RH".                                             |
 | kpa_text                        | string         | optional     | `kPa`                                   | The text used for kPa readings. Default is "kPa".                                                 |
@@ -171,7 +180,7 @@ calculateVPD: |2-
 | rooms                           | list           | **required** |                                         | A list of rooms with their temperature and humidity entity IDs, and an optional name for display. |
 | vpd_phases                      | list           | optional     | See description                         | A list of VPD phases and their classes for visual representation. See below for defaults.         |
 | enable_tooltip                  | boolean        | optional     | `true`                                  | Tooltip enabled by default.                                                                       |
-| is_bar_view                     | boolean        | optional     | `true`                                  | Enable Bar view of this chart for fast information of sensors                                     |
+| is_bar_view                     | boolean        | optional     | `false`                                 | Legacy option that selects bar view when set to `true`.                                           |
 | enable_axes                     | boolean        | optional     | `true`                                  | Enable Axes on the Chart                                                                          |
 | enable_ghostmap                 | boolean        | optional     | `true`                                  | Enable Ghostmap on the Chart                                                                      |
 | enable_ghostclick               | boolean        | optional     | `true`                                  | Enable Ghostclick instead of Hover                                                                |

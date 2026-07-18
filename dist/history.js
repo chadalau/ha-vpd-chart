@@ -1,0 +1,253 @@
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+export const history = {
+    initializeHistoryChart() {
+        const cssUrl = new URL('history.css?v=3.0.0', import.meta.url).href;
+        this.innerHTML = `
+            <ha-card class="vpd-history-view">
+                <style>@import '${cssUrl}'</style>
+                <div class="history-header">
+                    <div class="history-rooms" role="group" aria-label="Select room"></div>
+                    <div class="history-reading" aria-live="polite">
+                        <div><strong class="history-vpd">--</strong> <span class="history-kpa-unit">kPa</span></div>
+                        <span class="history-phase"></span>
+                        <span class="history-environment"></span>
+                    </div>
+                </div>
+                <div class="history-chart-wrap">
+                    <svg class="history-chart" viewBox="0 0 720 350" role="img" aria-label="VPD history"></svg>
+                    <div class="history-empty">No history available</div>
+                </div>
+            </ha-card>`;
+        this.content = this.querySelector('.history-chart');
+        this.historySelectedRoom = Math.min(this.historySelectedRoom || 0, this.config.rooms.length - 1);
+        this.renderHistoryRoomButtons();
+    },
+
+    async buildHistoryChart() {
+        if (!this.content || !this.querySelector('.vpd-history-view')) {
+            this.initializeHistoryChart();
+        }
+        this.historySelectedRoom = Math.min(this.historySelectedRoom || 0, this.config.rooms.length - 1);
+        this.renderHistoryRoomButtons();
+        this.updateHistoryReading();
+
+        const room = this.config.rooms[this.historySelectedRoom];
+        if (!room) return;
+        const cacheKey = JSON.stringify([room.temperature, room.humidity, room.leaf_temperature, room.vpd, this.ghostmap_hours]);
+        const cacheFresh = this._historyCacheKey === cacheKey && Date.now() - (this._historyLastFetch || 0) < 300000;
+        if (cacheFresh) return;
+
+        const token = (this._historyRenderToken || 0) + 1;
+        this._historyRenderToken = token;
+        this._historyCacheKey = cacheKey;
+        this._historyLastFetch = Date.now();
+        const data = await this.getHistoryRoomData(room);
+        if (token !== this._historyRenderToken || !this.isConnected) return;
+        this.renderHistorySvg(data);
+    },
+
+    cleanupHistory() {
+        this._historyRenderToken = (this._historyRenderToken || 0) + 1;
+    },
+
+    formatHistoryPhase(name = '') {
+        const label = String(name).replace(/[-_]+/g, ' ').trim();
+        return label ? label.charAt(0).toUpperCase() + label.slice(1) : '';
+    },
+
+    renderHistoryRoomButtons() {
+        const container = this.querySelector('.history-rooms');
+        if (!container) return;
+        const fingerprint = this.config.rooms.map(room => room.name || room.temperature).join('|');
+        if (container.dataset.fingerprint === fingerprint) return;
+        container.dataset.fingerprint = fingerprint;
+        container.replaceChildren();
+        this.config.rooms.forEach((room, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = room.name || `Room ${index + 1}`;
+            button.className = index === this.historySelectedRoom ? 'active' : '';
+            button.setAttribute('aria-pressed', String(index === this.historySelectedRoom));
+            button.addEventListener('click', () => {
+                this.historySelectedRoom = index;
+                container.querySelectorAll('button').forEach((item, buttonIndex) => {
+                    const active = buttonIndex === index;
+                    item.classList.toggle('active', active);
+                    item.setAttribute('aria-pressed', String(active));
+                });
+                this._historyLastFetch = 0;
+                this.updateHistoryReading();
+                this.buildHistoryChart();
+            });
+            container.appendChild(button);
+        });
+    },
+
+    getCurrentRoomReading(room) {
+        const temperatureEntity = this._hass.states[room.temperature];
+        const humidityEntity = this._hass.states[room.humidity];
+        const temperature = Number.parseFloat(temperatureEntity?.state);
+        const humidity = Number.parseFloat(humidityEntity?.state);
+        if (!Number.isFinite(temperature) || !Number.isFinite(humidity)) return null;
+        const leafEntity = room.leaf_temperature && this._hass.states[room.leaf_temperature];
+        const leafTemperature = Number.isFinite(Number.parseFloat(leafEntity?.state))
+            ? Number.parseFloat(leafEntity.state)
+            : temperature - Number(this.getLeafTemperatureOffset());
+        const vpdEntity = room.vpd && this._hass.states[room.vpd];
+        const externalVpd = Number.parseFloat(vpdEntity?.state);
+        const unit = temperatureEntity.attributes.unit_of_measurement || '°C';
+        const vpd = Number.isFinite(externalVpd)
+            ? externalVpd
+            : Number(this.calculateVPD(leafTemperature, temperature, humidity, unit));
+        return {temperature, humidity, vpd, unit};
+    },
+
+    updateHistoryReading() {
+        const room = this.config.rooms[this.historySelectedRoom];
+        if (!room) return;
+        const reading = this.getCurrentRoomReading(room);
+        if (!reading) return;
+        this.querySelector('.history-vpd').textContent = reading.vpd.toFixed(2);
+        this.querySelector('.history-kpa-unit').textContent = this.kpa_text || 'kPa';
+        this.querySelector('.history-phase').textContent = this.formatHistoryPhase(this.getPhaseClass(reading.vpd));
+        this.querySelector('.history-environment').textContent = `${reading.temperature.toFixed(1)} ${reading.unit} · ${reading.humidity.toFixed(0)}% ${this.rh_text || 'RH'}`;
+    },
+
+    async getHistoryRoomData(room) {
+        const hours = Number(this.ghostmap_hours || 24);
+        if (room.vpd && this._hass.states[room.vpd]) {
+            const values = await this.getEntityHistory(room.vpd, hours);
+            return values.map(item => ({time: new Date(item.last_changed).getTime(), vpd: Number.parseFloat(item.state)}))
+                .filter(item => Number.isFinite(item.time) && Number.isFinite(item.vpd))
+                .sort((a, b) => a.time - b.time);
+        }
+
+        const requests = [
+            this.getEntityHistory(room.temperature, hours),
+            this.getEntityHistory(room.humidity, hours),
+        ];
+        if (room.leaf_temperature) requests.push(this.getEntityHistory(room.leaf_temperature, hours));
+        const [temperatures, humidities, leaves = []] = await Promise.all(requests);
+        const unit = this._hass.states[room.temperature]?.attributes.unit_of_measurement || '°C';
+
+        const nearest = (items, timestamp) => items.reduce((best, item) => {
+            const distance = Math.abs(new Date(item.last_changed).getTime() - timestamp);
+            return !best || distance < best.distance ? {item, distance} : best;
+        }, null)?.item;
+
+        return temperatures.map(item => {
+            const time = new Date(item.last_changed).getTime();
+            const temperature = Number.parseFloat(item.state);
+            const humidity = Number.parseFloat(nearest(humidities, time)?.state);
+            const leafValue = Number.parseFloat(nearest(leaves, time)?.state);
+            const leafTemperature = Number.isFinite(leafValue)
+                ? leafValue
+                : temperature - Number(this.getLeafTemperatureOffset());
+            return {
+                time,
+                vpd: Number(this.calculateVPD(leafTemperature, temperature, humidity, unit)),
+            };
+        }).filter(item => Number.isFinite(item.time) && Number.isFinite(item.vpd)).sort((a, b) => a.time - b.time);
+    },
+
+    renderHistorySvg(data) {
+        const svg = this.querySelector('.history-chart');
+        const empty = this.querySelector('.history-empty');
+        if (!svg || !empty) return;
+        const reading = this.getCurrentRoomReading(this.config.rooms[this.historySelectedRoom]);
+        const now = Date.now();
+        const hours = Number(this.ghostmap_hours || 24);
+        const start = now - hours * 3600000;
+        const points = data.filter(item => item.time >= start && item.time <= now);
+        points.sort((a, b) => a.time - b.time);
+        if (reading) {
+            const lastPoint = points.at(-1);
+            if (lastPoint && now - lastPoint.time < 60000) {
+                lastPoint.time = now;
+                lastPoint.vpd = reading.vpd;
+            } else {
+                points.push({time: now, vpd: reading.vpd});
+            }
+        }
+        svg.replaceChildren();
+        empty.style.display = points.length ? 'none' : 'block';
+        if (!points.length) return;
+
+        const width = 720;
+        const height = 350;
+        const margin = {left: 58, right: 22, top: 22, bottom: 42};
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        const configuredMax = Math.max(...this.vpd_phases.map(phase => phase.upper ?? phase.lower ?? 0), 2);
+        const valueMax = Math.max(...points.map(point => point.vpd), configuredMax);
+        const maxY = Math.ceil((valueMax + 0.2) * 5) / 5;
+        const x = timestamp => margin.left + ((timestamp - start) / (now - start)) * plotWidth;
+        const y = value => margin.top + plotHeight - (Math.max(0, value) / maxY) * plotHeight;
+        const createSvg = (tag, attributes = {}) => {
+            const element = document.createElementNS(SVG_NS, tag);
+            Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+            return element;
+        };
+
+        this.vpd_phases.forEach(phase => {
+            const lower = Math.max(0, Number(phase.lower ?? 0));
+            const upper = Math.min(maxY, Number(phase.upper ?? maxY));
+            if (upper <= lower) return;
+            const rect = createSvg('rect', {
+                x: margin.left,
+                y: y(upper),
+                width: plotWidth,
+                height: y(lower) - y(upper),
+                fill: phase.color || 'currentColor',
+                opacity: '0.16',
+            });
+            svg.appendChild(rect);
+            const label = createSvg('text', {x: margin.left + 8, y: y(upper) + 16, class: 'phase-label'});
+            label.textContent = this.formatHistoryPhase(phase.className);
+            svg.appendChild(label);
+        });
+
+        for (let index = 0; index <= 5; index++) {
+            const value = maxY * index / 5;
+            const lineY = y(value);
+            svg.appendChild(createSvg('line', {x1: margin.left, y1: lineY, x2: width - margin.right, y2: lineY, class: 'grid-line'}));
+            const label = createSvg('text', {x: margin.left - 9, y: lineY + 4, 'text-anchor': 'end', class: 'axis-label'});
+            label.textContent = value.toFixed(1);
+            svg.appendChild(label);
+        }
+
+        const locale = this._hass.locale?.language || this._hass.language || 'en';
+        const timeFormat = new Intl.DateTimeFormat(locale, {hour: '2-digit', minute: '2-digit'});
+        for (let index = 0; index <= 4; index++) {
+            const time = start + (now - start) * index / 4;
+            const lineX = x(time);
+            svg.appendChild(createSvg('line', {x1: lineX, y1: margin.top, x2: lineX, y2: margin.top + plotHeight, class: 'grid-line'}));
+            const label = createSvg('text', {x: lineX, y: height - 14, 'text-anchor': index === 0 ? 'start' : index === 4 ? 'end' : 'middle', class: 'axis-label'});
+            label.textContent = timeFormat.format(new Date(time));
+            svg.appendChild(label);
+        }
+
+        const pathData = points.map((point, index) => `${index ? 'L' : 'M'} ${x(point.time).toFixed(1)} ${y(point.vpd).toFixed(1)}`).join(' ');
+        const area = createSvg('path', {d: `${pathData} L ${x(points.at(-1).time)} ${margin.top + plotHeight} L ${x(points[0].time)} ${margin.top + plotHeight} Z`, class: 'trend-area'});
+        svg.appendChild(area);
+        svg.appendChild(createSvg('path', {d: pathData, class: 'trend-line'}));
+
+        points.forEach((point, index) => {
+            if (index !== points.length - 1 && points.length > 30 && index % 2) return;
+            const circle = createSvg('circle', {cx: x(point.time), cy: y(point.vpd), r: index === points.length - 1 ? 5 : 3, class: index === points.length - 1 ? 'current-point' : 'history-point'});
+            const title = createSvg('title');
+            title.textContent = `${timeFormat.format(new Date(point.time))}: ${point.vpd.toFixed(2)} kPa`;
+            circle.appendChild(title);
+            svg.appendChild(circle);
+        });
+
+        const current = points.at(-1);
+        const currentLabel = createSvg('text', {x: x(current.time) - 9, y: y(current.vpd) - 11, 'text-anchor': 'end', class: 'current-label'});
+        currentLabel.textContent = `${current.vpd.toFixed(2)} kPa`;
+        svg.appendChild(currentLabel);
+        const unitLabel = createSvg('text', {x: 17, y: margin.top + plotHeight / 2, transform: `rotate(-90 17 ${margin.top + plotHeight / 2})`, 'text-anchor': 'middle', class: 'axis-label'});
+        unitLabel.textContent = 'VPD (kPa)';
+        svg.appendChild(unitLabel);
+    },
+};

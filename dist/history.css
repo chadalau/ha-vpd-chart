@@ -1,0 +1,150 @@
+.vpd-history-view {
+    padding: 16px;
+    overflow: hidden;
+}
+
+.history-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.history-rooms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.history-rooms button {
+    appearance: none;
+    border: 1px solid var(--divider-color);
+    border-radius: 16px;
+    padding: 6px 12px;
+    background: transparent;
+    color: var(--primary-text-color);
+    cursor: pointer;
+}
+
+.history-rooms button.active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: var(--text-primary-color, #fff);
+}
+
+.history-reading {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--secondary-text-color);
+}
+
+.history-reading strong {
+    color: var(--primary-text-color);
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.history-phase {
+    border-radius: 12px;
+    padding: 3px 8px;
+    background: var(--secondary-background-color);
+    color: var(--primary-text-color);
+}
+
+.history-chart-wrap {
+    position: relative;
+    min-height: 240px;
+}
+
+.history-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 240px;
+}
+
+.grid-line {
+    stroke: var(--divider-color);
+    stroke-width: 1;
+}
+
+.axis-label,
+.phase-label {
+    fill: var(--secondary-text-color);
+    font-size: 11px;
+}
+
+.phase-label {
+    fill: var(--primary-text-color);
+}
+
+.trend-area {
+    fill: color-mix(in srgb, var(--primary-color) 14%, transparent);
+}
+
+.trend-line {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.history-point {
+    fill: var(--primary-color);
+    opacity: .72;
+}
+
+.current-point {
+    fill: var(--primary-color);
+    stroke: var(--card-background-color);
+    stroke-width: 3;
+}
+
+.current-label {
+    fill: var(--primary-text-color);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.history-empty {
+    display: none;
+    position: absolute;
+    inset: 40% 0 auto;
+    text-align: center;
+    color: var(--secondary-text-color);
+}
+
+@media (max-width: 600px) {
+    .vpd-history-view {
+        padding: 12px 8px;
+    }
+
+    .history-reading {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .phase-label {
+        display: none;
+    }
+
+    .history-chart-wrap,
+    .history-chart {
+        min-height: 0;
+    }
+
+    .axis-label,
+    .current-label {
+        font-size: 22px;
+    }
+
+    .trend-line {
+        stroke-width: 5;
+    }
+}
