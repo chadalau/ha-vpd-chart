@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.2.4', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.2.5', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>

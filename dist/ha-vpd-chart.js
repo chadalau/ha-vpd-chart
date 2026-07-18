@@ -1,12 +1,12 @@
 // Set version for the card 
-window.vpdChartVersion = "3.2.4";
+window.vpdChartVersion = "3.2.5";
 
-import {methods} from './methods.js?v=3.2.4';
-import {chart} from './chart.js?v=3.2.4';
-import {bar} from './bar.js?v=3.2.4';
-import {history} from './history.js?v=3.2.4';
-import {ghostmap} from './ghostmap.js?v=3.2.4';
-import './ha-vpd-chart-editor.js?v=3.2.4';
+import {methods} from './methods.js?v=3.2.5';
+import {chart} from './chart.js?v=3.2.5';
+import {bar} from './bar.js?v=3.2.5';
+import {history} from './history.js?v=3.2.5';
+import {ghostmap} from './ghostmap.js?v=3.2.5';
+import './ha-vpd-chart-editor.js?v=3.2.5';
 
 const CONFIG_KEYS = [
     'vpd_phases', 'sensors', 'air_text', 'leaf_text', 'rh_text', 'kpa_text', 'min_temperature',
@@ -184,7 +184,24 @@ class HaVpdChart extends HTMLElement {
     }
 
     getCardSize() {
-        return this.getActiveViewMode() === 'bar' ? Math.max(1, this.config?.rooms?.length || 1) : 6;
+        const mode = this.getActiveViewMode();
+        if (mode === 'bar') return Math.max(1, this.config?.rooms?.length || 1);
+        return mode === 'history' ? 9 : 6;
+    }
+
+    getGridOptions() {
+        if (this.getActiveViewMode() === 'history') {
+            return {
+                columns: 12,
+                min_columns: 3,
+                rows: 7,
+                min_rows: 7,
+            };
+        }
+        return {
+            columns: 12,
+            min_columns: 3,
+        };
     }
 
     getActiveViewMode() {
