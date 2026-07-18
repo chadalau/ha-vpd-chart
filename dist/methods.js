@@ -136,12 +136,18 @@ export const methods = {
             return this.config.leaf_temperature_offset;
         }
         if (typeof this.config.leaf_temperature_offset === 'string') {
-            offset = this._hass.states[this.config.leaf_temperature_offset].state;
+            offset = this._hass?.states?.[this.config.leaf_temperature_offset]?.state;
             if (!isNaN(offset)) {
                 return offset;
             }
         }
         return offset;
+    },
+    hasUsableRoom() {
+        return Array.isArray(this.config?.rooms) && this.config.rooms.some(room =>
+            room?.temperature && room?.humidity &&
+            this._hass?.states?.[room.temperature] && this._hass?.states?.[room.humidity]
+        );
     },
     copyConfig() {
         return JSON.parse(JSON.stringify(this.config));

@@ -57,7 +57,15 @@ wget -O - https://get.hacs.xyz | bash -
    url: `/local/community/ha-vpd-chart/ha-vpd-chart.js`\
    type: `module`
 
-**Note:** After adding the resource, you may need to restart Home Assistant.
+**Note:** After adding or updating the resource, clear the browser cache (or use a hard reload). Home Assistant itself does not need to be restarted.
+
+### Compatibility
+
+Version 2.1.0 supports current Home Assistant frontend releases.  Resources are
+resolved relative to `ha-vpd-chart.js`, so the card works when installed by HACS,
+manually under `/local`, or from a custom resource path.  The card also ignores a
+room while one of its configured sensors is unavailable instead of failing the
+whole card.
 
 ## Usage
 

@@ -8,7 +8,7 @@ export const chart = {
             <ha-card>
                 <div class="vpd-chart-view"  style="display:none;">
                     <style>
-                        @import '##url##?v=${window.vpdChartVersion}'
+                        @import '##url##'
                     </style>
                     <div id="vpd-card-container" class="vpd-card-container"></div>
                     <div id="ghostmap"></div>
@@ -22,20 +22,14 @@ export const chart = {
                 </div>
             </ha-card>
         `;
-        try {
-            const response = await fetch(`/hacsfiles/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
-            if (response.ok) {
-                this.innerHTML = this.htmlTemplate.replace('##url##', `/hacsfiles/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
-                this.content = this.querySelector("div.vpd-card-container");
-                this.roomdom = this.querySelector("div#rooms");
-                this.ghostmapDom = this.querySelector("div#ghostmap");
-                this.mouseTooltip = this.querySelector("div#mouse-tooltip");
-            } else {
-                throw new Error('fallback to local/community');
-            }
-        } catch (error) {
-            this.innerHTML = this.htmlTemplate.replace('##url##', `/local/community/ha-vpd-chart/chart.css?v=${window.vpdChartVersion}`);
-        }
+        // Resolve the stylesheet beside this module.  This supports HACS, /local,
+        // dashboards with a URL prefix, and a custom resource location.
+        const cssUrl = new URL('chart.css', import.meta.url).href;
+        this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
+        this.content = this.querySelector("div.vpd-card-container");
+        this.roomdom = this.querySelector("div#rooms");
+        this.ghostmapDom = this.querySelector("div#ghostmap");
+        this.mouseTooltip = this.querySelector("div#mouse-tooltip");
     },
     async buildChart() {
         if (!this.content) {
@@ -115,12 +109,15 @@ export const chart = {
     },
 
     setupEventListeners() {
-        this.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
-        this.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        this.cleanupChart();
+        this._eventAbortController = new AbortController();
+        const options = {signal: this._eventAbortController.signal};
+        this.addEventListener('mouseleave', this.handleMouseLeave.bind(this), options);
+        this.addEventListener('mousemove', this.handleMouseMove.bind(this), options);
         if (this.enable_zoom) {
-            this.addEventListener('wheel', this.handleZoom.bind(this));
-            this.addEventListener('mousedown', this.handleMouseDown.bind(this));
-            this.addEventListener('mouseup', this.handleMouseUp.bind(this));
+            this.addEventListener('wheel', this.handleZoom.bind(this), {...options, passive: false});
+            this.addEventListener('mousedown', this.handleMouseDown.bind(this), options);
+            this.addEventListener('mouseup', this.handleMouseUp.bind(this), options);
             this.addEventListener('auxclick', (event) => {
                 if (event.button === 1) {
                     this.zoomLevel = 1;
@@ -137,13 +134,19 @@ export const chart = {
                         }
                     });
                 }
-            });
+            }, options);
         }
+    },
+    cleanupChart() {
+        this._eventAbortController?.abort();
+        this._eventAbortController = undefined;
+        if (this._ghostMapInterval) clearInterval(this._ghostMapInterval);
+        this._ghostMapInterval = undefined;
     },
     updateGhostMapPeriodically() {
         if (this.enable_ghostmap) {
             this.updateGhostMap();
-            setInterval(() => this.updateGhostMap(), 3600000); // Update every hour
+            this._ghostMapInterval = setInterval(() => this.updateGhostMap(), 3600000);
         }
     },
 
@@ -300,8 +303,14 @@ export const chart = {
                         container.appendChild(tableContainer);
                     }
 
-                    const temperature = parseFloat(this._hass.states[room.temperature].state);
-                    const leafTemperature = room.leaf_temperature ? parseFloat(this._hass.states[room.leaf_temperature].state) : undefined;
+                    const temperatureEntity = this._hass.states[room.temperature];
+                    if (!temperatureEntity || !this._hass.states[room.humidity]) {
+                        resolve();
+                        return;
+                    }
+                    const temperature = parseFloat(temperatureEntity.state);
+                    const leafEntity = room.leaf_temperature && this._hass.states[room.leaf_temperature];
+                    const leafTemperature = leafEntity ? parseFloat(leafEntity.state) : undefined;
                     let leafTemperatureOffset = leafTemperature !== undefined ? temperature - leafTemperature : this.getLeafTemperatureOffset();
 
                     let vpdMatrix = this.createVPDMatrix(this.min_temperature, this.max_temperature, this.steps_temperature, this.max_humidity, this.min_humidity, this.steps_humidity, leafTemperatureOffset);

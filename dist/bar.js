@@ -3,7 +3,7 @@ export const bar = {
         this.htmlTemplate = `
             <ha-card class="vpd-bar-view" style="display:none;">
                     <style>
-                        @import '##url##?v=${window.vpdChartVersion}'                    
+                        @import '##url##'
                     </style>
                     <div class="card-content"></div>
                     <div class="highlight mousePointer" style="opacity:0">
@@ -15,19 +15,9 @@ export const bar = {
                     </div>
                 </ha-card>
         `;
-        await fetch(`/hacsfiles/ha-vpd-chart/bar.css?v=${window.vpdChartVersion}`)
-            .then(response => {
-                if (response.ok) {
-                    this.innerHTML = this.htmlTemplate.replace('##url##', `/hacsfiles/ha-vpd-chart/bar.css?v=${window.vpdChartVersion}`);
-                    this.content = this.querySelector("div.card-content");
-                    return;
-                }
-                throw new Error('fallback to local/community');
-            })
-            .catch(() => {
-                this.innerHTML = this.htmlTemplate.replace('##url##', `/local/community/ha-vpd-chart/bar.css?v=${window.vpdChartVersion}`);
-                this.content = this.querySelector("div.card-content");
-            });
+        const cssUrl = new URL('bar.css', import.meta.url).href;
+        this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
+        this.content = this.querySelector("div.card-content");
 
     },
     async buildBarChart() {
@@ -37,6 +27,7 @@ export const bar = {
                 let vpd = 0;
 
                 this.config.rooms.forEach((room) => {
+                    if (!this._hass.states[room.humidity] || !this._hass.states[room.temperature]) return;
                     const humidity = parseFloat(this._hass.states[room.humidity].state);
                     const temperature = parseFloat(this._hass.states[room.temperature].state);
                     let leafTemperature = temperature - this.getLeafTemperatureOffset();
@@ -60,9 +51,7 @@ export const bar = {
                     }
                     // if room.name is not empty than show in the card
                     let html = `<div class="bar">`;
-                    if (room.name !== "") {
-                        html += `<span class="vpd-title">${room.name}</span>`;
-                    }
+                    html += `<span class="vpd-title">${room.name || ''}</span>`;
                     html += `<span class="vpd-value">${vpd} ${this.kpa_text || ''}</span>`;
                     html += `<span class="vpd-rh">${showHumidity}%</span>`;
                     html += `<span class="vpd-temp">${temperature}</span>`;
@@ -102,6 +91,7 @@ export const bar = {
     updateBars() {
         let vpd = 0;
         this.config.rooms.forEach((room, index) => {
+            if (!this._hass.states[room.humidity] || !this._hass.states[room.temperature]) return;
             const humidity = this.toFixedNumber(this._hass.states[room.humidity].state, 1);
             const temperature = this.toFixedNumber(this._hass.states[room.temperature].state, 1);
             let leafTemperature = this.toFixedNumber(temperature - this.getLeafTemperatureOffset());
@@ -122,6 +112,7 @@ export const bar = {
                 roomName = 'Room ' + (index + 1);
             }
             let card = this.content.querySelector(`ha-card[data-room="${room.name}"]`);
+            if (!card) return;
             // get the bar from card
             let bar = card.querySelector('.bar');
             bar.querySelector('.vpd-title').innerText = roomName;

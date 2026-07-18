@@ -1,5 +1,5 @@
 // Set version for the card 
-window.vpdChartVersion = "2.0.0";
+window.vpdChartVersion = "2.1.0";
 
 import {methods} from './methods.js';
 import {chart} from './chart.js';
@@ -95,10 +95,18 @@ class HaVpdChart extends HTMLElement {
 
     set hass(hass) {
         this._hass = hass;
-        this.updateChartView();
+        // Home Assistant can update hass several times in one render frame.
+        if (!this._updateQueued) {
+            this._updateQueued = true;
+            requestAnimationFrame(() => {
+                this._updateQueued = false;
+                this.updateChartView();
+            });
+        }
     }
 
     updateChartView() {
+        if (!this.config || !this.hasUsableRoom()) return;
         switch (this.config.antialiasing) {
             case 1:
                 this.steps_temperature = 1;
@@ -149,7 +157,26 @@ class HaVpdChart extends HTMLElement {
         return document.createElement("ha-vpd-chart-editor");
     }
 
+    static getStubConfig() {
+        return {
+            type: 'custom:ha-vpd-chart',
+            rooms: [{name: '', temperature: '', humidity: ''}],
+        };
+    }
+
+    getCardSize() {
+        return this.is_bar_view ? Math.max(1, this.config?.rooms?.length || 1) : 6;
+    }
+
+    disconnectedCallback() {
+        this.cleanupChart?.();
+    }
+
     setConfig(config) {
+        if (!config || typeof config !== 'object') {
+            throw new Error('The card configuration must be an object');
+        }
+        const previousBarView = this.is_bar_view;
         this.config = config;
 
         if (!config.rooms) {
@@ -167,6 +194,16 @@ class HaVpdChart extends HTMLElement {
                 this[key] = config[key];
             }
         });
+
+        if (!Array.isArray(this.config.rooms)) {
+            throw new Error('rooms must be a list');
+        }
+
+        if (this.content && previousBarView !== this.is_bar_view) {
+            this.cleanupChart?.();
+            this.replaceChildren();
+            this.content = undefined;
+        }
 
         if (this.config.calculateVPD) {
             this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', 'unit_of_measuerment', this.config.calculateVPD);

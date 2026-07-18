@@ -107,6 +107,7 @@ export class HaVpdChartEditor extends HTMLElement {
 
     set hass(hass) {
         this._hass = hass;
+        if (this.isConnected && !this._rendered) this.initializeEditor();
     }
 
     get _air_text() {
@@ -285,6 +286,12 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     connectedCallback() {
+        if (this._hass) this.initializeEditor();
+    }
+
+    initializeEditor() {
+        if (this._rendered) return;
+        this._rendered = true;
         import('./lang/' + this._hass.language + '.js').then((module) => {
             this.language = module.language;
             this.render();
@@ -307,8 +314,9 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     render() {
+        const editorCssUrl = new URL('ha-vpd-chart-editor.css', import.meta.url).href;
         this.shadowRoot.innerHTML = `<style>
-    @import '/local/community/ha-vpd-chart/ha-vpd-chart-editor.css?v=${window.vpdChartVersion}'
+    @import '${editorCssUrl}'
 </style>
 <div class="vpd-chart-config">
     <button type="button" class="collapsible ">${this.language.buttons.rooms}</button>
