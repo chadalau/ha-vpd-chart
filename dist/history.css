@@ -178,10 +178,6 @@
         justify-content: flex-start;
     }
 
-    .phase-label {
-        display: none;
-    }
-
     .history-chart-wrap,
     .history-chart {
         min-height: 0;

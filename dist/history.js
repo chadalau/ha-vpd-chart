@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.2.3', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.2.4', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -68,6 +68,18 @@ export const history = {
     },
 
     formatHistoryPhase(name = '') {
+        const locale = this._hass.locale?.language || this._hass.language || 'en';
+        const portugueseLabels = {
+            'danger-zone': 'Acima da faixa',
+            'mid-late-flower': 'Floração',
+            'late-veg': 'Vegetativo tardio',
+            'early-veg': 'Vegetativo inicial',
+            'under-transpiration': 'Baixa transpiração',
+        };
+        const normalizedName = String(name).trim().toLowerCase().replace(/[_\s]+/g, '-');
+        if (locale.toLowerCase().startsWith('pt') && portugueseLabels[normalizedName]) {
+            return portugueseLabels[normalizedName];
+        }
         const label = String(name).replace(/[-_]+/g, ' ').trim();
         return label ? label.charAt(0).toUpperCase() + label.slice(1) : '';
     },
@@ -235,6 +247,10 @@ export const history = {
                 opacity: '0.16',
             });
             svg.appendChild(rect);
+            const labelY = reachesChartTop ? margin.top + 16 : y(upper) + 16;
+            const label = createSvg('text', {x: margin.left + 8, y: labelY, class: 'phase-label'});
+            label.textContent = this.formatHistoryPhase(phase.className);
+            svg.appendChild(label);
         });
 
         for (let index = 0; index <= 5; index++) {
