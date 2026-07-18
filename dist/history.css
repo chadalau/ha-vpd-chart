@@ -95,6 +95,8 @@
 
 .phase-label {
     fill: var(--primary-text-color);
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .trend-line {
@@ -195,6 +197,10 @@
     .axis-label,
     .current-label {
         font-size: 22px;
+    }
+
+    .phase-label {
+        font-size: 18px;
     }
 
     .trend-line {

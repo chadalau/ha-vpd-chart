@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.3.1', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.3.2', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -330,7 +330,7 @@ export const history = {
                 width,
                 height: y(lower) - bandTop,
                 fill: phase.color || 'currentColor',
-                opacity: '0.16',
+                opacity: '0.24',
             });
             svg.appendChild(rect);
             const labelY = reachesChartTop ? margin.top + 16 : y(upper) + 16;
