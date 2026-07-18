@@ -4,12 +4,17 @@
 }
 
 .history-header {
+    position: absolute;
+    z-index: 2;
+    top: 10px;
+    left: 14px;
+    right: 14px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
-    margin-bottom: 8px;
+    margin: 0;
 }
 
 .history-rooms {
@@ -58,14 +63,14 @@
 
 .history-chart-wrap {
     position: relative;
-    min-height: 240px;
+    min-height: 300px;
 }
 
 .history-chart {
     display: block;
     width: 100%;
     height: auto;
-    min-height: 240px;
+    min-height: 300px;
 }
 
 .grid-line {
@@ -166,7 +171,7 @@
     color: var(--secondary-text-color);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 420px) {
     .vpd-history-view {
         padding: 12px 8px;
     }

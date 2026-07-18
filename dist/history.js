@@ -2,20 +2,20 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.1.0', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.2.0', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
-                <div class="history-header">
-                    <div class="history-rooms" role="group" aria-label="Select room"></div>
-                    <div class="history-reading" aria-live="polite">
-                        <div><strong class="history-vpd">--</strong> <span class="history-kpa-unit">kPa</span></div>
-                        <span class="history-phase"></span>
-                        <span class="history-environment"></span>
-                    </div>
-                </div>
                 <div class="history-chart-wrap">
-                    <svg class="history-chart" viewBox="0 0 720 350" role="img" aria-label="VPD history"></svg>
+                    <div class="history-header">
+                        <div class="history-rooms" role="group" aria-label="Select room"></div>
+                        <div class="history-reading" aria-live="polite">
+                            <div><strong class="history-vpd">--</strong> <span class="history-kpa-unit">kPa</span></div>
+                            <span class="history-phase"></span>
+                            <span class="history-environment"></span>
+                        </div>
+                    </div>
+                    <svg class="history-chart" viewBox="0 0 720 434" role="img" aria-label="VPD history"></svg>
                     <div class="history-tooltip" role="status"></div>
                     <div class="history-empty">No history available</div>
                 </div>
@@ -23,6 +23,13 @@ export const history = {
         this.content = this.querySelector('.history-chart');
         this.historySelectedRoom = Math.min(this.historySelectedRoom || 0, this.config.rooms.length - 1);
         this.renderHistoryRoomButtons();
+        this._historyResizeObserver?.disconnect();
+        this._historyResizeObserver = new ResizeObserver(() => {
+            if (this._historyData && this.content?.clientWidth !== this._historyRenderedWidth) {
+                this.renderHistorySvg(this._historyData);
+            }
+        });
+        this._historyResizeObserver.observe(this.querySelector('.history-chart-wrap'));
     },
 
     async buildHistoryChart() {
@@ -37,7 +44,12 @@ export const history = {
         if (!room) return;
         const cacheKey = JSON.stringify([room.temperature, room.humidity, room.leaf_temperature, room.vpd, this.ghostmap_hours]);
         const cacheFresh = this._historyCacheKey === cacheKey && Date.now() - (this._historyLastFetch || 0) < 300000;
-        if (cacheFresh) return;
+        if (cacheFresh) {
+            if (this._historyData && this.content.clientWidth !== this._historyRenderedWidth) {
+                this.renderHistorySvg(this._historyData);
+            }
+            return;
+        }
 
         const token = (this._historyRenderToken || 0) + 1;
         this._historyRenderToken = token;
@@ -45,11 +57,14 @@ export const history = {
         this._historyLastFetch = Date.now();
         const data = await this.getHistoryRoomData(room);
         if (token !== this._historyRenderToken || !this.isConnected) return;
+        this._historyData = data;
         this.renderHistorySvg(data);
     },
 
     cleanupHistory() {
         this._historyRenderToken = (this._historyRenderToken || 0) + 1;
+        this._historyResizeObserver?.disconnect();
+        this._historyResizeObserver = undefined;
     },
 
     formatHistoryPhase(name = '') {
@@ -183,8 +198,15 @@ export const history = {
         if (!points.length) return;
 
         const width = 720;
-        const height = 350;
-        const margin = {left: 58, right: 22, top: 22, bottom: 42};
+        const header = this.querySelector('.history-header');
+        const displayWidth = svg.clientWidth || width;
+        const headerHeight = header?.offsetHeight || 40;
+        const topMargin = Math.max(74, headerHeight * width / displayWidth + 28);
+        const height = topMargin + 360 + 42;
+        const margin = {left: 58, right: 22, top: topMargin, bottom: 42};
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        this._historySvgHeight = height;
+        this._historyRenderedWidth = svg.clientWidth;
         const plotWidth = width - margin.left - margin.right;
         const plotHeight = height - margin.top - margin.bottom;
         const configuredMax = Math.max(...this.vpd_phases.map(phase => phase.upper ?? phase.lower ?? 0), 2);
@@ -299,7 +321,7 @@ export const history = {
             tooltip.appendChild(line);
         });
         const left = svg.offsetLeft + pointX / 720 * svg.clientWidth;
-        const top = svg.offsetTop + pointY / 350 * svg.clientHeight;
+        const top = svg.offsetTop + pointY / (this._historySvgHeight || 434) * svg.clientHeight;
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
         tooltip.classList.add('visible');
