@@ -1,6 +1,6 @@
-import {methods} from './methods.js';
+import {methods} from './methods.js?v=2.2.0';
 
-import {MultiRange} from './ha-vpd-chart-editor-multiRange.js';
+import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=2.2.0';
 
 export class HaVpdChartEditor extends HTMLElement {
     config = {
@@ -214,18 +214,19 @@ export class HaVpdChartEditor extends HTMLElement {
         this.config = this.initializeDefaults(loadedConfig);
 
         if (this.config.calculateVPD) {
-            this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', this.config.calculateVPD);
+            try {
+                this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', 'unit_of_measurement', this.config.calculateVPD);
+            } catch (error) {
+                console.warn('HA VPD Chart: formula is incomplete or invalid', error);
+            }
         }
     }
 
     checkValue(target) {
-        let value = target.value;
-        if (target.tagName === "HA-CHECKBOX") {
-            if (target.checked === "checked") {
-                target.checked = true;
-            }
-            value = target.checked;
+        if (target.type === 'checkbox') {
+            return target.checked;
         }
+        let value = target.value;
         if (typeof value === 'string' && !isNaN(value)) {
             value = this.toFixedNumber(value);
         }
@@ -245,16 +246,6 @@ export class HaVpdChartEditor extends HTMLElement {
             value = undefined;
         }
 
-        if (target.detail !== undefined && target.detail.value !== undefined) {
-            value = target.detail.value;
-        }
-        if (target.detail !== undefined && target.detail.value === undefined) {
-            value = undefined;
-            if (target.currentTarget.renderOptions.host.renderRoot.activeElement !== null) {
-                target.currentTarget.renderOptions.host.renderRoot.activeElement.__value = "";
-            }
-            target.currentTarget.renderOptions.host.__value = "";
-        }
         return value;
     }
 
@@ -317,7 +308,7 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     render() {
-        const editorCssUrl = new URL('ha-vpd-chart-editor.css', import.meta.url).href;
+        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=2.2.0', import.meta.url).href;
         this.shadowRoot.innerHTML = `<style>
     @import '${editorCssUrl}'
 </style>
@@ -389,67 +380,44 @@ export class HaVpdChartEditor extends HTMLElement {
             <table>
                 <tr>
                     <td>
-                        <ha-formfield data-title="${this.language.description.is_bar_view}" label="${this.language.titles.is_bar_view}">
-                            <ha-checkbox id="is_bar_view"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.is_bar_view}"><input type="checkbox" id="is_bar_view">${this.language.titles.is_bar_view}</label>
                     </td>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_axes}" label="${this.language.titles.enable_axes}">
-                            <ha-checkbox id="enable_axes"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_axes}"><input type="checkbox" id="enable_axes">${this.language.titles.enable_axes}</label>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_ghostmap}" label="${this.language.titles.enable_ghostmap}">
-                            <ha-checkbox id="enable_ghostmap"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_ghostmap}"><input type="checkbox" id="enable_ghostmap">${this.language.titles.enable_ghostmap}</label>
                     </td>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_ghostclick}" label="${this.language.titles.enable_ghostclick}">
-                            <ha-checkbox id="enable_ghostclick"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_ghostclick}"><input type="checkbox" id="enable_ghostclick">${this.language.titles.enable_ghostclick}</label>
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_triangle}" label="${this.language.titles.enable_triangle}">
-                            <ha-checkbox id="enable_triangle"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_triangle}"><input type="checkbox" id="enable_triangle">${this.language.titles.enable_triangle}</label>
                     </td>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_tooltip}" label="${this.language.titles.enable_tooltip}">
-                            <ha-checkbox id="enable_tooltip"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_tooltip}"><input type="checkbox" id="enable_tooltip">${this.language.titles.enable_tooltip}</label>
 
                     </td>
                 </tr>
                 <tr>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_crosshair}" label="${this.language.titles.enable_crosshair}">
-                            <ha-checkbox id="enable_crosshair"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_crosshair}"><input type="checkbox" id="enable_crosshair">${this.language.titles.enable_crosshair}</label>
                     </td>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_zoom}" label="${this.language.titles.enable_zoom}">
-                            <ha-checkbox id="enable_zoom"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_zoom}"><input type="checkbox" id="enable_zoom">${this.language.titles.enable_zoom}</label>
                     </td>
                 </tr>
                 <tr>
 
                     <td>
-                        <ha-formfield title="${this.language.description.enable_legend}" label="${this.language.titles.enable_legend}">
-                            <ha-checkbox id="enable_legend"></ha-checkbox>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_legend}"><input type="checkbox" id="enable_legend">${this.language.titles.enable_legend}</label>
                     </td>
                     <td>
-                        <ha-formfield title="${this.language.description.enable_show_always_informations}">                       
-                            <ha-checkbox id="enable_show_always_informations"></ha-checkbox>
-                            <label>
-                                ${this.language.titles.enable_show_always_informations}
-                            </label>
-                        </ha-formfield>
+                        <label class="vpd-editor-checkbox" title="${this.language.description.enable_show_always_informations}"><input type="checkbox" id="enable_show_always_informations">${this.language.titles.enable_show_always_informations}</label>
                     </td>
                 </tr>
             </table>
@@ -471,17 +439,16 @@ export class HaVpdChartEditor extends HTMLElement {
 </div>`;
         const debouncedHandleInputChange = this.debounce(this.handleValueChange, 500);
 
-        this.shadowRoot.querySelectorAll('ha-switch, ha-textfield, input').forEach(input => {
+        this.shadowRoot.querySelectorAll('input:not([type="checkbox"])').forEach(input => {
             let target = input;
 
             input.addEventListener('input', () => {
                 debouncedHandleInputChange(target);
             });
         });
-        this.shadowRoot.querySelectorAll('ha-checkbox').forEach(input => {
-
+        this.shadowRoot.querySelectorAll('input[type="checkbox"]').forEach(input => {
             input.addEventListener('change', this.handleValueChange);
-        })
+        });
         this.shadowRoot.querySelectorAll('.collapsible').forEach(collapsible => {
             collapsible.onclick = () => {
                 collapsible.classList.toggle("active");
@@ -526,7 +493,7 @@ export class HaVpdChartEditor extends HTMLElement {
             if (element) {
                 if (Object.isExtensible(element)) {
                     if (type === "checked") {
-                        element[type] = this[prop] ? 'checked' : '';
+                        element[type] = Boolean(this[prop]);
                     } else {
                         element[type] = this[prop];
                     }
@@ -620,7 +587,6 @@ export class HaVpdChartEditor extends HTMLElement {
                             element = this.createTextField(field, index, room[properties[i]]);
                             break;
                     }
-                    element.addEventListener('value-changed', (ev) => updateSensors(index, properties[i], ev));
                     const debouncedHandleInputChange = this.debounce(updateSensors, 500);
                     element.addEventListener('input', function (event) {
                         debouncedHandleInputChange(index, properties[i], event.target);
@@ -740,7 +706,8 @@ export class HaVpdChartEditor extends HTMLElement {
                 console.error('No phases exist');
                 return;
             }
-            const maxVPD = this.toFixedNumber(this.calculateVPD(this.max_temperature - this.leaf_temperature_offset, this.max_temperature, this.min_humidity));
+            const maxTemperature = this._max_temperature;
+            const maxVPD = this.toFixedNumber(this.calculateVPD(maxTemperature - this._leaf_temperature_offset, maxTemperature, this._min_humidity, this._unit_temperature));
             let lastPhase = newVpdPhases[newVpdPhases.length - 1];
             let lowerValue = this.toFixedNumber(lastPhase.lower);
 
@@ -801,7 +768,7 @@ export class HaVpdChartEditor extends HTMLElement {
         const container = this.shadowRoot.querySelector('.formulaEditor');
         container.innerHTML = `
         <div>
-            <p style="margin-bottom: 10px;">Available Variables: Tleaf, Tair, RH</p>
+            <p style="margin-bottom: 10px;">Available Variables: Tleaf, Tair, RH, unit_of_measurement</p>
             <textarea style="width: 100%; height: 100px; margin-top: 10px;"></textarea>
         </div>
     `;
@@ -822,6 +789,7 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 }
 
-customElements.define('ha-vpd-chart-editor', HaVpdChartEditor);
+if (!customElements.get('ha-vpd-chart-editor')) {
+    customElements.define('ha-vpd-chart-editor', HaVpdChartEditor);
+}
 Object.assign(HaVpdChartEditor.prototype, methods);
-Object.assign(HaVpdChartEditor.prototype, MultiRange);

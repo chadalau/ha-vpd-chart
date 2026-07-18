@@ -24,7 +24,7 @@ export const chart = {
         `;
         // Resolve the stylesheet beside this module.  This supports HACS, /local,
         // dashboards with a URL prefix, and a custom resource location.
-        const cssUrl = new URL('chart.css', import.meta.url).href;
+        const cssUrl = new URL('chart.css?v=2.2.0', import.meta.url).href;
         this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
         this.content = this.querySelector("div.vpd-card-container");
         this.roomdom = this.querySelector("div#rooms");
@@ -32,6 +32,12 @@ export const chart = {
         this.mouseTooltip = this.querySelector("div#mouse-tooltip");
     },
     async buildChart() {
+        const firstRoom = this.config.rooms.find(room => this._hass.states[room.temperature]);
+        if (firstRoom) {
+            this.updateTemperatureUnit(
+                this._hass.states[firstRoom.temperature].attributes.unit_of_measurement || '°C'
+            );
+        }
         if (!this.content) {
             await this.initializeChart.call(this);
 
@@ -157,7 +163,9 @@ export const chart = {
         this.startY = event.clientY;
 
         const computedStyle = window.getComputedStyle(this.content);
-        const matrix = new WebKitCSSMatrix(computedStyle.transform);
+        const matrix = computedStyle.transform === 'none'
+            ? new DOMMatrix()
+            : new DOMMatrix(computedStyle.transform);
 
         this.startLeft = matrix.m41;
         this.startTop = matrix.m42;
@@ -486,7 +494,7 @@ export const chart = {
                         </div>
                     </div>
                 `;
-                    rooms.innerHTML += htmlTemplate;
+                    rooms.insertAdjacentHTML('beforeend', htmlTemplate);
                     this.updatePointer(index, percentageHumidity, percentageTemperature, room.name, vpd, showHumidity, temperature, leafTemperature);
                 } else {
                     this.updatePointer(index, percentageHumidity, percentageTemperature, room.name, vpd, showHumidity, temperature, leafTemperature);

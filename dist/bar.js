@@ -15,7 +15,7 @@ export const bar = {
                     </div>
                 </ha-card>
         `;
-        const cssUrl = new URL('bar.css', import.meta.url).href;
+        const cssUrl = new URL('bar.css?v=2.2.0', import.meta.url).href;
         this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
         this.content = this.querySelector("div.card-content");
 
@@ -26,7 +26,7 @@ export const bar = {
             if (this._hass) {
                 let vpd = 0;
 
-                this.config.rooms.forEach((room) => {
+                this.config.rooms.forEach((room, index) => {
                     if (!this._hass.states[room.humidity] || !this._hass.states[room.temperature]) return;
                     const humidity = parseFloat(this._hass.states[room.humidity].state);
                     const temperature = parseFloat(this._hass.states[room.temperature].state);
@@ -36,17 +36,17 @@ export const bar = {
                             leafTemperature = parseFloat(this._hass.states[room.leaf_temperature].state);
                         }
                     }
-                    if (room.vpd !== undefined) {
+                    if (room.vpd !== undefined && this._hass.states[room.vpd]) {
                         vpd = parseFloat(this._hass.states[room.vpd].state);
                     } else {
                         vpd = this.calculateVPD(leafTemperature, temperature, humidity, this._hass.states[room.temperature].attributes['unit_of_measurement']);
                     }
                     let showHumidity = humidity;
 
-                    let card = this.content.querySelector(`ha-card[data-room="${room.name}"]`);
+                    let card = this.content.querySelector(`ha-card[data-index="${index}"]`);
                     if (!card) {
                         card = document.createElement('ha-card');
-                        card.dataset.room = room.name;
+                        card.dataset.index = index;
                         card.className = 'vpd-card';
                     }
                     // if room.name is not empty than show in the card
@@ -100,7 +100,7 @@ export const bar = {
                     leafTemperature = this.toFixedNumber(this._hass.states[room.leaf_temperature].state);
                 }
             }
-            if (room.vpd !== undefined) {
+            if (room.vpd !== undefined && this._hass.states[room.vpd]) {
                 vpd = this.toFixedNumber(this._hass.states[room.vpd].state);
             } else {
                 vpd = this.calculateVPD(leafTemperature, temperature, humidity, this._hass.states[room.temperature].attributes['unit_of_measurement']);
@@ -111,7 +111,7 @@ export const bar = {
             if (roomName === undefined) {
                 roomName = 'Room ' + (index + 1);
             }
-            let card = this.content.querySelector(`ha-card[data-room="${room.name}"]`);
+            let card = this.content.querySelector(`ha-card[data-index="${index}"]`);
             if (!card) return;
             // get the bar from card
             let bar = card.querySelector('.bar');
@@ -122,13 +122,13 @@ export const bar = {
             bar.querySelector('.vpd-state span').innerText = this.getPhaseClass(vpd);
             bar.querySelector('.vpd-state').style.background = this.getColorForVpd(vpd);
             if (this.enable_ghostmap) {
-                if (!this.updateRunning) {
-
-                    this.renderMiniHistory(room).then((data) => {
-                        this.updateRunning = true;
+                this._historyUpdates = this._historyUpdates || new Set();
+                if (!this._historyUpdates.has(index)) {
+                    this._historyUpdates.add(index);
+                    this.renderMiniHistory(room).then((roomData) => {
                         const canvas = bar.querySelector('canvas');
+                        if (!canvas?.isConnected) return;
                         const ctx = canvas.getContext('2d');
-                        ctx.reset();
                         canvas.width = 80;
                         canvas.height = 20;
 
@@ -136,11 +136,13 @@ export const bar = {
                         const pointRadius = 1;
                         const width = canvas.width - 2 * padding;
                         const height = canvas.height - 2 * padding;
-                        const roomData = data['room-' + index];
+                        if (!roomData?.length) {
+                            return;
+                        }
                         const maxY = Math.max(...roomData.map(data => this.toFixedNumber(data.vpd)));
                         const minY = Math.min(...roomData.map(data => this.toFixedNumber(data.vpd)));
-                        const scaleX = width / (roomData.length - 1);
-                        const scaleY = height / (maxY - minY);
+                        const scaleX = roomData.length > 1 ? width / (roomData.length - 1) : 0;
+                        const scaleY = maxY !== minY ? height / (maxY - minY) : 1;
 
                         let previousX;
                         let previousY;
@@ -150,11 +152,13 @@ export const bar = {
                             const y = padding + height - (this.toFixedNumber(data.vpd) - minY) * scaleY;
                             const color = this.getColorForVpd(this.toFixedNumber(data.vpd));
 
-                            ctx.beginPath();
-                            ctx.moveTo(x, y);
-                            ctx.lineTo(previousX, previousY);
-                            ctx.strokeStyle = color;
-                            ctx.stroke();
+                            if (previousX !== undefined) {
+                                ctx.beginPath();
+                                ctx.moveTo(previousX, previousY);
+                                ctx.lineTo(x, y);
+                                ctx.strokeStyle = color;
+                                ctx.stroke();
+                            }
 
                             ctx.beginPath();
                             ctx.arc(x, y, pointRadius, 0, Math.PI * 2);
@@ -164,9 +168,10 @@ export const bar = {
                             previousX = x;
                             previousY = y;
                         });
-                        setTimeout(() => {
-                            this.updateRunning = false;
-                        }, 15000);
+                    }).catch(() => {
+                        // History is optional; live VPD continues to work.
+                    }).finally(() => {
+                        setTimeout(() => this._historyUpdates.delete(index), 15000);
                     });
                 }
             }
@@ -186,25 +191,25 @@ export const bar = {
         }
         return '';
     },
-    async renderMiniHistory() {
-
+    async renderMiniHistory(room) {
+        const [temperatures, humidities] = await Promise.all([
+            this.getEntityHistory(room.temperature),
+            this.getEntityHistory(room.humidity)
+        ]);
         const data = [];
-        for (const [index, room] of this.config.rooms.entries()) {
-            data['room-' + index] = [];
-            const temperaturesPromise = this.getEntityHistory(room.temperature);
-            const humiditiesPromise = this.getEntityHistory(room.humidity);
-
-            const [temperatures, humidities] = await Promise.all([temperaturesPromise, humiditiesPromise]);
-            temperatures.forEach((temperature, tempIndex) => {
-                if (humidities[tempIndex]) {
-                    data['room-' + index].push({
-                        time: temperature.last_changed,
-                        vpd: this.calculateVPD(this.toFixedNumber(temperature.state) - this.getLeafTemperatureOffset(), this.toFixedNumber(temperature.state), this.toFixedNumber(humidities[tempIndex].state), this._hass.states[room.temperature].attributes['unit_of_measurement']),
-                    });
-                }
-            });
-        }
-
+        temperatures.forEach((temperature, tempIndex) => {
+            if (humidities[tempIndex]) {
+                data.push({
+                    time: temperature.last_changed,
+                    vpd: this.calculateVPD(
+                        this.toFixedNumber(temperature.state) - this.getLeafTemperatureOffset(),
+                        this.toFixedNumber(temperature.state),
+                        this.toFixedNumber(humidities[tempIndex].state),
+                        this._hass.states[room.temperature].attributes.unit_of_measurement
+                    ),
+                });
+            }
+        });
         return data;
 
     }

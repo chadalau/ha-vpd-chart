@@ -332,10 +332,6 @@ input[type="color"]::-webkit-color-swatch {
     visibility: hidden;
 }
 
-.vpd-chart-config ha-textfield {
-    width: 100%;
-}
-
 .vpd-chart-config .vpd-editor-field {
     display: block;
     color: var(--primary-text-color);
@@ -354,6 +350,21 @@ input[type="color"]::-webkit-color-swatch {
     background: var(--card-background-color);
     color: var(--primary-text-color);
     font: inherit;
+}
+
+.vpd-chart-config .vpd-editor-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    color: var(--primary-text-color);
+    cursor: pointer;
+}
+
+.vpd-chart-config .vpd-editor-checkbox input[type="checkbox"] {
+    float: none;
+    flex: 0 0 auto;
+    margin: 0;
 }
 
 .vpd-chart-config .infoIcon {

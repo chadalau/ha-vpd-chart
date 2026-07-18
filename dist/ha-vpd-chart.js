@@ -1,18 +1,19 @@
 // Set version for the card 
-window.vpdChartVersion = "2.1.2";
+window.vpdChartVersion = "2.2.0";
 
-import {methods} from './methods.js';
-import {chart} from './chart.js';
-import {bar} from './bar.js';
-import {ghostmap} from './ghostmap.js';
-import {HaVpdChartEditor} from './ha-vpd-chart-editor.js';
+import {methods} from './methods.js?v=2.2.0';
+import {chart} from './chart.js?v=2.2.0';
+import {bar} from './bar.js?v=2.2.0';
+import {ghostmap} from './ghostmap.js?v=2.2.0';
+import './ha-vpd-chart-editor.js?v=2.2.0';
 
 const CONFIG_KEYS = [
     'vpd_phases', 'sensors', 'air_text', 'leaf_text', 'rh_text', 'kpa_text', 'min_temperature',
     'max_temperature', 'min_humidity', 'max_humidity', 'min_height',
     'is_bar_view', 'enable_axes', 'enable_ghostclick', 'enable_ghostmap', 'enable_triangle',
     'enable_tooltip', 'enable_crosshair', 'ghostmap_hours',
-    'unit_temperature', 'enable_zoom', 'enable_legend', 'enable_show_always_informations'
+    'unit_temperature', 'enable_zoom', 'enable_legend', 'enable_show_always_informations',
+    'leaf_temperature_offset', 'antialiasing'
 ];
 
 class HaVpdChart extends HTMLElement {
@@ -44,8 +45,11 @@ class HaVpdChart extends HTMLElement {
         this.steps_humidity = .1;
         this.enable_tooltip = true;
         this.air_text = "Air";
+        this.leaf_text = "Leaf";
         this.rh_text = "RH";
         this.kpa_text = "kPa";
+        this.unit_temperature = "°C";
+        this.antialiasing = 5;
         this.enable_axes = true;
         this.enable_ghostclick = true;
         this.enable_ghostmap = true;
@@ -54,7 +58,6 @@ class HaVpdChart extends HTMLElement {
         this.enable_zoom = true;
         this.enable_show_always_informations = true;
         this.enable_legend = true;
-        this.updateRunning = false;
         this.configMemory = {};
         this.ghostmap_hours = 24;
         this.clickedTooltip = false;
@@ -159,7 +162,6 @@ class HaVpdChart extends HTMLElement {
 
     static getStubConfig() {
         return {
-            type: 'custom:ha-vpd-chart',
             rooms: [{name: '', temperature: '', humidity: ''}],
         };
     }
@@ -206,7 +208,11 @@ class HaVpdChart extends HTMLElement {
         }
 
         if (this.config.calculateVPD) {
-            this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', 'unit_of_measuerment', this.config.calculateVPD);
+            try {
+                this.calculateVPD = new Function('Tleaf', 'Tair', 'RH', 'unit_of_measurement', this.config.calculateVPD);
+            } catch (error) {
+                console.error('HA VPD Chart: invalid calculateVPD formula', error);
+            }
         }
     }
 }
@@ -215,17 +221,19 @@ Object.assign(HaVpdChart.prototype, methods);
 Object.assign(HaVpdChart.prototype, chart);
 Object.assign(HaVpdChart.prototype, bar);
 Object.assign(HaVpdChart.prototype, ghostmap);
-Object.assign(HaVpdChart.prototype, HaVpdChartEditor);
-
-customElements.define('ha-vpd-chart', HaVpdChart);
+if (!customElements.get('ha-vpd-chart')) {
+    customElements.define('ha-vpd-chart', HaVpdChart);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-    type: "ha-vpd-chart",
-    name: "Home Assistant VPD Chart",
-    preview: false, // Optional - defaults to false
-    description: "A custom card to display VPD values in a table",
-    documentationURL: "https://github.com/mentalilll/ha-vpd-chart", // Adds a help link in the frontend card editor
-});
+if (!window.customCards.some(card => card.type === 'ha-vpd-chart')) {
+    window.customCards.push({
+        type: "ha-vpd-chart",
+        name: "Home Assistant VPD Chart",
+        preview: false,
+        description: "A custom card to display VPD values in a table",
+        documentationURL: "https://github.com/chadalau/ha-vpd-chart",
+    });
+}
 console.groupCollapsed(`%c HA-VPD-CHART v${window.vpdChartVersion} Installed`, "color: green; background: black; font-weight: bold;");
-console.log('Readme: ', 'https://github.com/mentalilll/ha-vpd-chart');
+console.log('Readme: ', 'https://github.com/chadalau/ha-vpd-chart');
 console.groupEnd();

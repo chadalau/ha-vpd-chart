@@ -1,6 +1,6 @@
 export const methods = {
-    calculateVPD(Tleaf, Tair, RH, unit_of_measuerment = "°F") {
-        if (unit_of_measuerment === "°F" || unit_of_measuerment === "F") {
+    calculateVPD(Tleaf, Tair, RH, unit_of_measurement = "°C") {
+        if (unit_of_measurement === "°F" || unit_of_measurement === "F") {
             Tleaf = (Tleaf - 32) * 5 / 9;
             Tair = (Tair - 32) * 5 / 9;
         }
@@ -64,8 +64,8 @@ export const methods = {
         const isoEndTime = endTime.toISOString();
         if (entityId === undefined) return [];
         try {
-            const history = await this._hass.callApi('GET', `history/period/${isoStartTime}?filter_entity_id=${entityId}&end_time=${isoEndTime}&minimal_response&significant_changes_only&no_attributes`);
-            return this.filterEntriesByHour(history[0]);
+            const history = await this._hass.callApi('GET', `history/period/${isoStartTime}?filter_entity_id=${encodeURIComponent(entityId)}&end_time=${encodeURIComponent(isoEndTime)}&minimal_response&significant_changes_only&no_attributes`);
+            return this.filterEntriesByHour(history?.[0] || []);
         } catch (error) {
             return [];
         }
@@ -174,22 +174,6 @@ export const methods = {
             title: hass.states[sensor_id].attributes.friendly_name || sensor_id,
         }));
     },
-    createHaListItem(item) {
-        const haListItem = document.createElement('ha-list-item');
-        haListItem.twoline = !!item.entry_id;
-
-        const primarySpan = document.createElement('span');
-        primarySpan.textContent = item.title;
-        haListItem.appendChild(primarySpan);
-
-        const secondarySpan = document.createElement('span');
-        secondarySpan.setAttribute('slot', 'secondary');
-        secondarySpan.textContent = item.entry_id;
-
-        haListItem.appendChild(secondarySpan);
-
-        return haListItem;
-    },
     createComboBox(label, index, value, property, type) {
         const field = this.createTextField(label, index, value);
         const input = field.querySelector('input');
@@ -208,25 +192,8 @@ export const methods = {
         field.appendChild(list);
         return field;
     },
-    createCheckbox(label, index, value, property, title = '') {
-        const haFormfield = document.createElement('ha-formfield');
-        haFormfield.label = label;
-        if (title !== '') haFormfield.title = title;
-        haFormfield.setAttribute('data-index', index);
-        const checkbox = document.createElement('ha-checkbox');
-        checkbox.id = property;
-        checkbox.checked = value;
-        checkbox.setAttribute('data-configvalue', property);
-        haFormfield.appendChild(checkbox);
-        return haFormfield;
-    },
     fireEvent(node, type, detail = {}, options = {}) {
-        const event = new Event(type, {
-            bubbles: options.bubbles === undefined ? true : options.bubbles,
-            cancelable: Boolean(options.cancelable),
-            composed: options.composed === undefined ? true : options.composed,
-        });
-        if (detail.config.vpd_phases !== undefined) {
+        if (detail.config?.vpd_phases !== undefined) {
             if (detail.config.vpd_phases[0] !== undefined) {
                 detail.config.vpd_phases[0].lower = undefined;
             }
@@ -234,7 +201,12 @@ export const methods = {
                 detail.config.vpd_phases[detail.config.vpd_phases.length - 1].upper = undefined;
             }
         }
-        event.detail = detail;
+        const event = new CustomEvent(type, {
+            detail,
+            bubbles: options.bubbles === undefined ? true : options.bubbles,
+            cancelable: Boolean(options.cancelable),
+            composed: options.composed === undefined ? true : options.composed,
+        });
         node.dispatchEvent(event);
         return event;
     }
