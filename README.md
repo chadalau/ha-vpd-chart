@@ -61,7 +61,7 @@ wget -O - https://get.hacs.xyz | bash -
 
 ### Compatibility
 
-Version 3.2.5 supports current Home Assistant frontend releases. Resources are
+Version 3.3.0 supports current Home Assistant frontend releases. Resources are
 resolved relative to `ha-vpd-chart.js`, so the card works when installed by HACS,
 manually under `/local`, or from a custom resource path.  The card also ignores a
 room while one of its configured sensors is unavailable instead of failing the
@@ -107,7 +107,17 @@ Available visualization modes:
 - `chart`: the original temperature × humidity VPD map.
 - `bar`: compact status bars. The legacy `is_bar_view: true` option remains supported.
 
-In history mode, `enable_tooltip: true` enables hourly hover, keyboard-focus, and touch details for each point.
+In history mode, `enable_tooltip: true` enables hourly hover, keyboard-focus, and touch details for each point. When two or more rooms are configured, an **Average** button is added automatically. It shows the arithmetic mean of all currently available VPD readings and an hourly mean for the history line.
+
+A room can use a ready-made VPD entity instead of temperature and humidity:
+
+```yaml
+rooms:
+  - name: Sensor 1
+    vpd: sensor.vpd_1
+  - name: Sensor 2
+    vpd: sensor.vpd_2
+```
 
 To use the `HaVpdChart` in your Lovelace dashboard, add the following configuration to your dashboard. Adjust the rooms and other options according to your setup:
 
@@ -179,7 +189,7 @@ calculateVPD: |2-
 | max_humidity                    | number         | optional     | `90`                                    | Maximum humidity in the chart. Default is 90.                                                     |
 | min_height                      | number         | optional     | `200`                                   | Minimum height of the chart as px. Default is 200.                                                |
 | leaf_temperature_offset         | number\|string | optional     | `2`\|`input_number.leaf_offset_example` | Sets the Temperature Offset of the Leaf                                                           |                                                                                                     |
-| rooms                           | list           | **required** |                                         | A list of rooms with their temperature and humidity entity IDs, and an optional name for display. |
+| rooms                           | list           | **required** |                                         | Rooms using a direct `vpd` entity or temperature and humidity entities. Two or more rooms enable the automatic average view. |
 | vpd_phases                      | list           | optional     | See description                         | A list of VPD phases and their classes for visual representation. See below for defaults.         |
 | enable_tooltip                  | boolean        | optional     | `true`                                  | Tooltip enabled by default.                                                                       |
 | is_bar_view                     | boolean        | optional     | `false`                                 | Legacy option that selects bar view when set to `true`.                                           |

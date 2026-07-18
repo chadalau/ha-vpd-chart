@@ -145,8 +145,9 @@ export const methods = {
     },
     hasUsableRoom() {
         return Array.isArray(this.config?.rooms) && this.config.rooms.some(room =>
-            room?.temperature && room?.humidity &&
-            this._hass?.states?.[room.temperature] && this._hass?.states?.[room.humidity]
+            (room?.vpd && this._hass?.states?.[room.vpd]) ||
+            (room?.temperature && room?.humidity &&
+                this._hass?.states?.[room.temperature] && this._hass?.states?.[room.humidity])
         );
     },
     copyConfig() {
@@ -166,7 +167,7 @@ export const methods = {
     getSensorsByType(hass, type) {
         const sensors = Object.keys(hass.states).filter(entity_id => {
             const entity = hass.states[entity_id];
-            return entity_id.startsWith('sensor.') && entity.attributes.device_class === type;
+            return entity_id.startsWith('sensor.') && (!type || entity.attributes.device_class === type);
         });
 
         return sensors.map(sensor_id => ({

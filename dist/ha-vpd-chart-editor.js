@@ -1,6 +1,6 @@
-import {methods} from './methods.js?v=3.2.5';
+import {methods} from './methods.js?v=3.3.0';
 
-import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=3.2.5';
+import {MultiRange} from './ha-vpd-chart-editor-multiRange.js?v=3.3.0';
 
 export class HaVpdChartEditor extends HTMLElement {
     config = {
@@ -320,7 +320,7 @@ export class HaVpdChartEditor extends HTMLElement {
     }
 
     render() {
-        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=3.2.5', import.meta.url).href;
+        const editorCssUrl = new URL('ha-vpd-chart-editor.css?v=3.3.0', import.meta.url).href;
         this.shadowRoot.innerHTML = `<style>
     @import '${editorCssUrl}'
 </style>
@@ -588,8 +588,8 @@ export class HaVpdChartEditor extends HTMLElement {
                 const container = document.createElement('div');
                 container.style = "border: 1px solid rgba(127,127,127,0.3); padding: 5px; border-radius: 15px;";
 
-                const fields = [this.language.name, this.language.temperature_sensor + '*', this.language.leaf_temperature_sensor, this.language.humidity_sensor + '*'];
-                const properties = ['name', 'temperature', 'leaf_temperature', 'humidity'];
+                const fields = [this.language.name, this.language.vpd_sensor || 'Sensor VPD (opcional)', this.language.temperature_sensor, this.language.leaf_temperature_sensor, this.language.humidity_sensor];
+                const properties = ['name', 'vpd', 'temperature', 'leaf_temperature', 'humidity'];
 
                 fields.forEach((field, i) => {
                     let element;
@@ -600,6 +600,9 @@ export class HaVpdChartEditor extends HTMLElement {
                             break;
                         case 'humidity':
                             element = this.createComboBox(field, index, room[properties[i]], properties[i], 'humidity');
+                            break;
+                        case 'vpd':
+                            element = this.createComboBox(field, index, room[properties[i]], properties[i]);
                             break;
                         default:
                             element = this.createTextField(field, index, room[properties[i]]);
@@ -631,7 +634,7 @@ export class HaVpdChartEditor extends HTMLElement {
         addButton.className = 'addButton';
         addButton.addEventListener('click', () => {
             let configCopy = this.copyConfig();
-            configCopy.rooms.push({name: '', temperature: '', humidity: '', leaf_temperature: null});
+            configCopy.rooms.push({name: '', vpd: '', temperature: '', humidity: '', leaf_temperature: null});
             this.config = configCopy;
             this.fireEvent(this, 'config-changed', {config: this.config});
             this.initRooms();

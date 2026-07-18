@@ -19,11 +19,16 @@
 
 .history-rooms {
     display: flex;
-    flex-wrap: wrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
     gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
 }
 
 .history-rooms button {
+    flex: 0 0 auto;
     appearance: none;
     border: 1px solid var(--divider-color);
     border-radius: 16px;

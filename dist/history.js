@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.2.5', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.3.0', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -21,7 +21,7 @@ export const history = {
                 </div>
             </ha-card>`;
         this.content = this.querySelector('.history-chart');
-        this.historySelectedRoom = Math.min(this.historySelectedRoom || 0, this.config.rooms.length - 1);
+        this.normalizeHistorySelection();
         this.renderHistoryRoomButtons();
         this._historyResizeObserver?.disconnect();
         this._historyResizeObserver = new ResizeObserver(() => {
@@ -36,13 +36,15 @@ export const history = {
         if (!this.content || !this.querySelector('.vpd-history-view')) {
             this.initializeHistoryChart();
         }
-        this.historySelectedRoom = Math.min(this.historySelectedRoom || 0, this.config.rooms.length - 1);
+        this.normalizeHistorySelection();
         this.renderHistoryRoomButtons();
         this.updateHistoryReading();
 
-        const room = this.config.rooms[this.historySelectedRoom];
-        if (!room) return;
-        const cacheKey = JSON.stringify([room.temperature, room.humidity, room.leaf_temperature, room.vpd, this.ghostmap_hours]);
+        const averaging = this.historySelectedRoom === 'average';
+        const room = averaging ? null : this.config.rooms[this.historySelectedRoom];
+        if (!averaging && !room) return;
+        const roomKeys = averaging ? this.config.rooms : [room];
+        const cacheKey = JSON.stringify([this.historySelectedRoom, roomKeys.map(item => [item.temperature, item.humidity, item.leaf_temperature, item.vpd]), this.ghostmap_hours]);
         const cacheFresh = this._historyCacheKey === cacheKey && Date.now() - (this._historyLastFetch || 0) < 300000;
         if (cacheFresh) {
             if (this._historyData && this.content.clientWidth !== this._historyRenderedWidth) {
@@ -55,7 +57,7 @@ export const history = {
         this._historyRenderToken = token;
         this._historyCacheKey = cacheKey;
         this._historyLastFetch = Date.now();
-        const data = await this.getHistoryRoomData(room);
+        const data = averaging ? await this.getAverageHistoryData() : await this.getHistoryRoomData(room);
         if (token !== this._historyRenderToken || !this.isConnected) return;
         this._historyData = data;
         this.renderHistorySvg(data);
@@ -84,10 +86,21 @@ export const history = {
         return label ? label.charAt(0).toUpperCase() + label.slice(1) : '';
     },
 
+    normalizeHistorySelection() {
+        if (this.historySelectedRoom === 'average' && this.config.rooms.length > 1) return;
+        const selected = Number.isInteger(this.historySelectedRoom) ? this.historySelectedRoom : 0;
+        this.historySelectedRoom = Math.max(0, Math.min(selected, this.config.rooms.length - 1));
+    },
+
+    getHistoryAverageLabel() {
+        const locale = this._hass.locale?.language || this._hass.language || 'en';
+        return locale.toLowerCase().startsWith('pt') ? 'Média' : 'Average';
+    },
+
     renderHistoryRoomButtons() {
         const container = this.querySelector('.history-rooms');
         if (!container) return;
-        const fingerprint = this.config.rooms.map(room => room.name || room.temperature).join('|');
+        const fingerprint = `${this.config.rooms.map(room => room.name || room.vpd || room.temperature).join('|')}|${this.getHistoryAverageLabel()}`;
         if (container.dataset.fingerprint === fingerprint) return;
         container.dataset.fingerprint = fingerprint;
         container.replaceChildren();
@@ -95,12 +108,13 @@ export const history = {
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent = room.name || `Room ${index + 1}`;
+            button.dataset.selection = String(index);
             button.className = index === this.historySelectedRoom ? 'active' : '';
             button.setAttribute('aria-pressed', String(index === this.historySelectedRoom));
             button.addEventListener('click', () => {
                 this.historySelectedRoom = index;
-                container.querySelectorAll('button').forEach((item, buttonIndex) => {
-                    const active = buttonIndex === index;
+                container.querySelectorAll('button').forEach(item => {
+                    const active = item.dataset.selection === String(index);
                     item.classList.toggle('active', active);
                     item.setAttribute('aria-pressed', String(active));
                 });
@@ -110,6 +124,26 @@ export const history = {
             });
             container.appendChild(button);
         });
+        if (this.config.rooms.length > 1) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = this.getHistoryAverageLabel();
+            button.dataset.selection = 'average';
+            button.className = this.historySelectedRoom === 'average' ? 'active' : '';
+            button.setAttribute('aria-pressed', String(this.historySelectedRoom === 'average'));
+            button.addEventListener('click', () => {
+                this.historySelectedRoom = 'average';
+                container.querySelectorAll('button').forEach(item => {
+                    const active = item.dataset.selection === 'average';
+                    item.classList.toggle('active', active);
+                    item.setAttribute('aria-pressed', String(active));
+                });
+                this._historyLastFetch = 0;
+                this.updateHistoryReading();
+                this.buildHistoryChart();
+            });
+            container.appendChild(button);
+        }
     },
 
     getCurrentRoomReading(room) {
@@ -117,29 +151,49 @@ export const history = {
         const humidityEntity = this._hass.states[room.humidity];
         const temperature = Number.parseFloat(temperatureEntity?.state);
         const humidity = Number.parseFloat(humidityEntity?.state);
+        const vpdEntity = room.vpd && this._hass.states[room.vpd];
+        const externalVpd = Number.parseFloat(vpdEntity?.state);
+        const unit = temperatureEntity?.attributes?.unit_of_measurement || this.unit_temperature || '°C';
+        if (Number.isFinite(externalVpd)) {
+            return {temperature, humidity, vpd: externalVpd, unit};
+        }
         if (!Number.isFinite(temperature) || !Number.isFinite(humidity)) return null;
         const leafEntity = room.leaf_temperature && this._hass.states[room.leaf_temperature];
         const leafTemperature = Number.isFinite(Number.parseFloat(leafEntity?.state))
             ? Number.parseFloat(leafEntity.state)
             : temperature - Number(this.getLeafTemperatureOffset());
-        const vpdEntity = room.vpd && this._hass.states[room.vpd];
-        const externalVpd = Number.parseFloat(vpdEntity?.state);
-        const unit = temperatureEntity.attributes.unit_of_measurement || '°C';
-        const vpd = Number.isFinite(externalVpd)
-            ? externalVpd
-            : Number(this.calculateVPD(leafTemperature, temperature, humidity, unit));
+        const vpd = Number(this.calculateVPD(leafTemperature, temperature, humidity, unit));
         return {temperature, humidity, vpd, unit};
     },
 
+    getCurrentHistoryReading() {
+        if (this.historySelectedRoom !== 'average') {
+            return this.getCurrentRoomReading(this.config.rooms[this.historySelectedRoom]);
+        }
+        const readings = this.config.rooms.map(room => this.getCurrentRoomReading(room)).filter(Boolean);
+        if (!readings.length) return null;
+        const average = key => {
+            const values = readings.map(reading => reading[key]).filter(Number.isFinite);
+            return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : Number.NaN;
+        };
+        return {
+            vpd: average('vpd'),
+            temperature: average('temperature'),
+            humidity: average('humidity'),
+            unit: readings.find(reading => reading.unit)?.unit || this.unit_temperature || '°C',
+            sampleCount: readings.length,
+        };
+    },
+
     updateHistoryReading() {
-        const room = this.config.rooms[this.historySelectedRoom];
-        if (!room) return;
-        const reading = this.getCurrentRoomReading(room);
+        const reading = this.getCurrentHistoryReading();
         if (!reading) return;
         this.querySelector('.history-vpd').textContent = reading.vpd.toFixed(2);
         this.querySelector('.history-kpa-unit').textContent = this.kpa_text || 'kPa';
         this.querySelector('.history-phase').textContent = this.formatHistoryPhase(this.getPhaseClass(reading.vpd));
-        this.querySelector('.history-environment').textContent = `${reading.temperature.toFixed(1)} ${reading.unit} · ${reading.humidity.toFixed(0)}% ${this.rh_text || 'RH'}`;
+        this.querySelector('.history-environment').textContent = Number.isFinite(reading.temperature) && Number.isFinite(reading.humidity)
+            ? `${reading.temperature.toFixed(1)} ${reading.unit} · ${reading.humidity.toFixed(0)}% ${this.rh_text || 'RH'}`
+            : '';
     },
 
     async getHistoryRoomData(room) {
@@ -182,11 +236,39 @@ export const history = {
         }).filter(item => Number.isFinite(item.time) && Number.isFinite(item.vpd)).sort((a, b) => a.time - b.time);
     },
 
+    async getAverageHistoryData() {
+        const series = await Promise.all(this.config.rooms.map(room => this.getHistoryRoomData(room)));
+        const bucketSize = 3600000;
+        const buckets = new Map();
+        series.forEach((points, roomIndex) => {
+            points.forEach(point => {
+                const bucket = Math.floor(point.time / bucketSize) * bucketSize;
+                if (!buckets.has(bucket)) buckets.set(bucket, new Map());
+                buckets.get(bucket).set(roomIndex, point);
+            });
+        });
+        const average = (points, key) => {
+            const values = points.map(point => point[key]).filter(Number.isFinite);
+            return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : Number.NaN;
+        };
+        return [...buckets.entries()].map(([time, roomPoints]) => {
+            const points = [...roomPoints.values()];
+            return {
+                time,
+                vpd: average(points, 'vpd'),
+                temperature: average(points, 'temperature'),
+                humidity: average(points, 'humidity'),
+                unit: points.find(point => point.unit)?.unit || this.unit_temperature || '°C',
+                sampleCount: points.length,
+            };
+        }).filter(point => Number.isFinite(point.vpd)).sort((a, b) => a.time - b.time);
+    },
+
     renderHistorySvg(data) {
         const svg = this.querySelector('.history-chart');
         const empty = this.querySelector('.history-empty');
         if (!svg || !empty) return;
-        const reading = this.getCurrentRoomReading(this.config.rooms[this.historySelectedRoom]);
+        const reading = this.getCurrentHistoryReading();
         const now = Date.now();
         const hours = Number(this.ghostmap_hours || 24);
         const start = now - hours * 3600000;
@@ -200,8 +282,9 @@ export const history = {
                 lastPoint.temperature = reading.temperature;
                 lastPoint.humidity = reading.humidity;
                 lastPoint.unit = reading.unit;
+                lastPoint.sampleCount = reading.sampleCount;
             } else {
-                points.push({time: now, vpd: reading.vpd, temperature: reading.temperature, humidity: reading.humidity, unit: reading.unit});
+                points.push({time: now, vpd: reading.vpd, temperature: reading.temperature, humidity: reading.humidity, unit: reading.unit, sampleCount: reading.sampleCount});
             }
         }
         svg.replaceChildren();
@@ -318,6 +401,10 @@ export const history = {
         const phase = this.formatHistoryPhase(this.getPhaseClass(point.vpd));
         const details = [`${timeFormat.format(new Date(point.time))} · ${point.vpd.toFixed(2)} ${this.kpa_text || 'kPa'}`];
         if (phase) details.push(phase);
+        if (point.sampleCount > 1) {
+            const locale = this._hass.locale?.language || this._hass.language || 'en';
+            details.push(locale.toLowerCase().startsWith('pt') ? `Média de ${point.sampleCount} sensores` : `Average of ${point.sampleCount} sensors`);
+        }
         if (Number.isFinite(point.temperature) && Number.isFinite(point.humidity)) {
             details.push(`${point.temperature.toFixed(1)} ${point.unit || '°C'} · ${point.humidity.toFixed(0)}% ${this.rh_text || 'RH'}`);
         }
