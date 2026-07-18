@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.2.0', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.2.1', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -201,8 +201,8 @@ export const history = {
         const header = this.querySelector('.history-header');
         const displayWidth = svg.clientWidth || width;
         const headerHeight = header?.offsetHeight || 40;
-        const topMargin = Math.max(74, headerHeight * width / displayWidth + 28);
-        const height = topMargin + 360 + 42;
+        const topMargin = Math.max(66, headerHeight * width / displayWidth + 18);
+        const height = topMargin + 420 + 42;
         const margin = {left: 58, right: 22, top: topMargin, bottom: 42};
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
         this._historySvgHeight = height;
@@ -224,16 +224,19 @@ export const history = {
             const lower = Math.max(0, Number(phase.lower ?? 0));
             const upper = Math.min(maxY, Number(phase.upper ?? maxY));
             if (upper <= lower) return;
+            const reachesChartTop = upper >= maxY;
+            const bandTop = reachesChartTop ? 0 : y(upper);
             const rect = createSvg('rect', {
                 x: margin.left,
-                y: y(upper),
+                y: bandTop,
                 width: plotWidth,
-                height: y(lower) - y(upper),
+                height: y(lower) - bandTop,
                 fill: phase.color || 'currentColor',
                 opacity: '0.16',
             });
             svg.appendChild(rect);
-            const label = createSvg('text', {x: margin.left + 8, y: y(upper) + 16, class: 'phase-label'});
+            const labelY = reachesChartTop ? margin.top + 16 : y(upper) + 16;
+            const label = createSvg('text', {x: margin.left + 8, y: labelY, class: 'phase-label'});
             label.textContent = this.formatHistoryPhase(phase.className);
             svg.appendChild(label);
         });
@@ -320,18 +323,27 @@ export const history = {
             line.textContent = detail;
             tooltip.appendChild(line);
         });
-        const left = svg.offsetLeft + pointX / 720 * svg.clientWidth;
-        const top = svg.offsetTop + pointY / (this._historySvgHeight || 434) * svg.clientHeight;
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
+        const wrap = this.querySelector('.history-chart-wrap');
+        if (!wrap) return;
+        const svgRect = svg.getBoundingClientRect();
+        const wrapRect = wrap.getBoundingClientRect();
+        const left = svgRect.left - wrapRect.left + pointX / 720 * svgRect.width;
+        const top = svgRect.top - wrapRect.top + pointY / (this._historySvgHeight || 434) * svgRect.height;
+        tooltip.style.visibility = 'hidden';
         tooltip.classList.add('visible');
-        tooltip.classList.toggle('below', top < tooltip.offsetHeight + 12);
-        const halfWidth = tooltip.offsetWidth / 2;
-        const clampedLeft = Math.min(Math.max(left, halfWidth + 6), svg.clientWidth - halfWidth - 6);
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const halfWidth = Math.min(tooltipRect.width || 180, wrapRect.width - 12) / 2;
+        const clampedLeft = Math.min(Math.max(left, halfWidth + 6), wrapRect.width - halfWidth - 6);
+        const showBelow = top - (tooltipRect.height || 64) - 10 < 6;
         tooltip.style.left = `${clampedLeft}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.classList.toggle('below', showBelow);
+        tooltip.style.visibility = 'visible';
     },
 
     hideHistoryTooltip() {
-        this.querySelector('.history-tooltip')?.classList.remove('visible', 'below');
+        const tooltip = this.querySelector('.history-tooltip');
+        tooltip?.classList.remove('visible', 'below');
+        if (tooltip) tooltip.style.visibility = '';
     },
 };

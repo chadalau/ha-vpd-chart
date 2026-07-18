@@ -24,7 +24,7 @@ export const chart = {
         `;
         // Resolve the stylesheet beside this module.  This supports HACS, /local,
         // dashboards with a URL prefix, and a custom resource location.
-        const cssUrl = new URL('chart.css?v=3.2.0', import.meta.url).href;
+        const cssUrl = new URL('chart.css?v=3.2.1', import.meta.url).href;
         this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
         this.content = this.querySelector("div.vpd-card-container");
         this.roomdom = this.querySelector("div#rooms");
