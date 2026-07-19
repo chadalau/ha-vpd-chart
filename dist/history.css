@@ -93,6 +93,11 @@
     font-size: 11px;
 }
 
+.axis-date {
+    font-size: 10px;
+    opacity: .78;
+}
+
 .phase-label {
     fill: var(--primary-text-color);
     font-size: 14px;
@@ -200,6 +205,10 @@
     }
 
     .phase-label {
+        font-size: 18px;
+    }
+
+    .axis-date {
         font-size: 18px;
     }
 

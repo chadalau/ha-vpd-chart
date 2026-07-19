@@ -2,7 +2,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export const history = {
     initializeHistoryChart() {
-        const cssUrl = new URL('history.css?v=3.3.2', import.meta.url).href;
+        const cssUrl = new URL('history.css?v=3.3.3', import.meta.url).href;
         this.innerHTML = `
             <ha-card class="vpd-history-view">
                 <style>@import '${cssUrl}'</style>
@@ -347,12 +347,23 @@ export const history = {
 
         const locale = this._hass.locale?.language || this._hass.language || 'en';
         const timeFormat = new Intl.DateTimeFormat(locale, {hour: '2-digit', minute: '2-digit'});
+        const dateFormat = new Intl.DateTimeFormat(locale, {day: '2-digit', month: '2-digit'});
+        const showAxisDate = hours >= 18;
         for (let index = 0; index <= 4; index++) {
             const time = start + (now - start) * index / 4;
             const lineX = x(time);
             svg.appendChild(createSvg('line', {x1: lineX, y1: margin.top, x2: lineX, y2: margin.top + plotHeight, class: 'grid-line'}));
-            const label = createSvg('text', {x: lineX, y: height - 14, 'text-anchor': index === 0 ? 'start' : index === 4 ? 'end' : 'middle', class: 'axis-label'});
-            label.textContent = timeFormat.format(new Date(time));
+            const label = createSvg('text', {x: lineX, y: showAxisDate ? height - 27 : height - 14, 'text-anchor': index === 0 ? 'start' : index === 4 ? 'end' : 'middle', class: 'axis-label'});
+            if (showAxisDate) {
+                const dateLine = createSvg('tspan', {x: lineX, class: 'axis-date'});
+                dateLine.textContent = dateFormat.format(new Date(time));
+                label.appendChild(dateLine);
+                const timeLine = createSvg('tspan', {x: lineX, dy: 13});
+                timeLine.textContent = timeFormat.format(new Date(time));
+                label.appendChild(timeLine);
+            } else {
+                label.textContent = timeFormat.format(new Date(time));
+            }
             svg.appendChild(label);
         }
 
