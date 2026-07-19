@@ -15,7 +15,7 @@ export const bar = {
                     </div>
                 </ha-card>
         `;
-        const cssUrl = new URL('bar.css?v=3.3.3', import.meta.url).href;
+        const cssUrl = new URL('bar.css?v=3.3.4', import.meta.url).href;
         this.innerHTML = this.htmlTemplate.replace('##url##', cssUrl);
         this.content = this.querySelector("div.card-content");
 
